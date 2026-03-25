@@ -1,7 +1,4 @@
 
-
-
-
 import db from "../db/productDB.js";
 
 export async function getBuyerProducts(req, res) {
@@ -17,6 +14,7 @@ export async function getBuyerProducts(req, res) {
         p.gst_verified,
         p.rating_avg,
         p.remaining_stock,
+        p.metal_type,
         c.category_name,
         'seller' AS product_source,
         (SELECT JSON_ARRAYAGG(JSON_EXTRACT(url, '$[0]'))
@@ -35,7 +33,8 @@ export async function getBuyerProducts(req, res) {
         p.description,
         p.gst_verified,
         p.rating_avg,
-        NULL AS remaining_stock,
+        p.remaining_stock,
+        p.metal_type,
         sc.supplier_company AS category_name,
         'supplier' AS product_source,
         (SELECT JSON_ARRAYAGG(JSON_EXTRACT(url, '$[0]'))
@@ -51,30 +50,28 @@ export async function getBuyerProducts(req, res) {
       total: products.length,
       products,
     });
-
   } catch (err) {
     console.error("Buyer Product Error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
-
 export const getPopularProducts = async (req, res) => {
   try {
     const [rows] = await db.query("CALL sp_get_popular_products()");
 
-    const products = rows[0].map(p => ({
+    const products = rows[0].map((p) => ({
       ...p,
       images: p.images
         ? Array.isArray(p.images)
           ? p.images
           : JSON.parse(p.images)
-        : []
+        : [],
     }));
 
     res.json({
       success: true,
-      products
+      products,
     });
   } catch (error) {
     console.error("POPULAR PRODUCTS ERROR:", error);
@@ -96,7 +93,7 @@ export const getProductsByCategory = async (req, res) => {
     const categoryId = Number(id);
 
     const [categories] = await db.query(
-      "SELECT id, parent_id FROM category_master WHERE status = 1"
+      "SELECT id, parent_id FROM category_master WHERE status = 1",
     );
 
     const ids = [];
@@ -120,7 +117,8 @@ export const getProductsByCategory = async (req, res) => {
         p.gst_verified,
         p.rating_avg,
         p.remaining_stock,
-        'seller' AS source,
+        p.metal_type,
+        'seller' AS product_source,
         (
           SELECT JSON_ARRAYAGG(JSON_EXTRACT(pu.url, '$[0]'))
           FROM product_url pu
@@ -130,7 +128,7 @@ export const getProductsByCategory = async (req, res) => {
       FROM product p
       WHERE p.category_id IN (?)
       `,
-      [ids]
+      [ids],
     );
 
     const [supplierRows] = await db.query(
@@ -143,8 +141,9 @@ export const getProductsByCategory = async (req, res) => {
         sp.description,
         sp.gst_verified,
         sp.rating_avg,
-        NULL AS remaining_stock,
-        'supplier' AS source,
+        sp.remaining_stock,
+        sp.metal_type,
+        'supplier' AS product_source,
         (
           SELECT JSON_ARRAYAGG(spu.url)
           FROM supplier_product_url spu
@@ -155,7 +154,7 @@ export const getProductsByCategory = async (req, res) => {
       WHERE sp.category_master_id IN (?)
         AND sp.status = 'active'
       `,
-      [ids]
+      [ids],
     );
 
     const normalizeImages = (images) => {
@@ -212,10 +211,10 @@ export const getBuyerProductsByCategory = async (req, res) => {
       )
       SELECT id FROM category_tree
       `,
-      [categoryId]
+      [categoryId],
     );
 
-    const categoryIds = categories.map(c => c.id);
+    const categoryIds = categories.map((c) => c.id);
 
     if (!categoryIds.length) {
       return res.json({ success: true, products: [] });
@@ -231,6 +230,7 @@ export const getBuyerProductsByCategory = async (req, res) => {
         p.product_price,
         p.rating_avg,
         p.remaining_stock,
+        p.metal_type,
         'seller' AS product_source,
         (
           SELECT JSON_ARRAYAGG(pu.url)
@@ -250,6 +250,7 @@ export const getBuyerProductsByCategory = async (req, res) => {
         sp.wholesale_price AS product_price,
         sp.rating_avg,
         sp.remaining_stock,
+        sp.metal_type,
         'supplier' AS product_source,
         (
           SELECT JSON_ARRAYAGG(spu.url)
@@ -259,7 +260,7 @@ export const getBuyerProductsByCategory = async (req, res) => {
       FROM supplier_product sp
       WHERE sp.category_master_id IN (?)
       `,
-      [categoryIds, categoryIds]
+      [categoryIds, categoryIds],
     );
 
     res.json({
@@ -267,7 +268,6 @@ export const getBuyerProductsByCategory = async (req, res) => {
       count: products.length,
       products,
     });
-
   } catch (error) {
     console.error("CATEGORY BUYER ERROR:", error);
     res.status(500).json({
@@ -276,7 +276,6 @@ export const getBuyerProductsByCategory = async (req, res) => {
     });
   }
 };
-
 
 export const getBuyerCategoryProducts = async (req, res) => {
   try {
@@ -315,10 +314,10 @@ export const getBuyerCategoryProducts = async (req, res) => {
       )
       SELECT id FROM category_tree
       `,
-      [categoryId]
+      [categoryId],
     );
 
-    const categoryIds = categories.map(c => c.id);
+    const categoryIds = categories.map((c) => c.id);
 
     if (!categoryIds.length) {
       return res.json({
@@ -341,6 +340,7 @@ export const getBuyerCategoryProducts = async (req, res) => {
           1 AS moq,
           p.rating_avg,
           p.remaining_stock,
+          p.metal_type,
           'seller' AS product_source,
           (
             SELECT JSON_ARRAYAGG(pu.url)
@@ -362,6 +362,7 @@ export const getBuyerCategoryProducts = async (req, res) => {
           sp.wholesale_moq AS moq,
           sp.rating_avg,
           sp.remaining_stock,
+          sp.metal_type,
           'supplier' AS product_source,
           (
             SELECT JSON_ARRAYAGG(spu.url)
@@ -396,7 +397,7 @@ export const getBuyerCategoryProducts = async (req, res) => {
       }
     };
 
-    const finalProducts = products.map(p => ({
+    const finalProducts = products.map((p) => ({
       ...p,
       images: normalizeImages(p.images),
     }));
@@ -417,7 +418,6 @@ export const getBuyerCategoryProducts = async (req, res) => {
   }
 };
 
-
 export const getBuyerPriceRange = async (req, res) => {
   try {
     const [rows] = await db.query(`
@@ -434,14 +434,13 @@ export const getBuyerPriceRange = async (req, res) => {
     res.json({
       success: true,
       minPrice: rows[0].minPrice || 0,
-      maxPrice: rows[0].maxPrice || 0
+      maxPrice: rows[0].maxPrice || 0,
     });
   } catch (err) {
     console.error("PRICE RANGE ERROR:", err);
     res.status(500).json({ message: "Failed to fetch price range" });
   }
 };
-
 
 export const searchBuyerProducts = async (req, res) => {
   try {
@@ -469,6 +468,7 @@ export const searchBuyerProducts = async (req, res) => {
           p.product_price,
           p.rating_avg,
           p.remaining_stock,
+          p.metal_type,
           'seller' AS product_source,
           cm.category_name,
           (
@@ -493,6 +493,7 @@ export const searchBuyerProducts = async (req, res) => {
           sp.wholesale_price AS product_price,
           sp.rating_avg,
           sp.remaining_stock,
+          sp.metal_type,
           'supplier' AS product_source,
           cm.category_name,
           (
@@ -513,7 +514,7 @@ export const searchBuyerProducts = async (req, res) => {
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
       `,
-      [q, q, q, q, q, q, Number(limit), Number(offset)]
+      [q, q, q, q, q, q, Number(limit), Number(offset)],
     );
 
     const normalizeImages = (imgs) => {
