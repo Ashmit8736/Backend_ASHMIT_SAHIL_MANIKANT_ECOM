@@ -50,7 +50,7 @@ async function sendSignupOtp(req, res) {
 
     await sendSMS2(phoneWithCountry, message);
 
-    console.log("✅ SIGNUP OTP SENT:", phoneWithCountry, otp);
+    // console.log("✅ SIGNUP OTP SENT:", phoneWithCountry, otp);
 
     return res.status(200).json({ message: "Signup OTP sent successfully" });
 
@@ -97,7 +97,7 @@ async function sendSignupOtp1(req, res) {
 
     await sendSMS(phone, message);
 
-    console.log("✅ SIGNUP OTP SENT:", phone, otp);
+    // console.log("✅ SIGNUP OTP SENT:", phone, otp);
 
     return res.status(200).json({ message: "Signup OTP sent successfully" });
 
@@ -140,7 +140,7 @@ async function sendForgotOtp(req, res) {
 
     await sendSMS2("91" + phone, message);
 
-    console.log("✅ FORGOT OTP SENT:", phone, otp);
+    // console.log("✅ FORGOT OTP SENT:", phone, otp);
 
     return res.status(200).json({ message: "Forgot OTP sent successfully" });
 
