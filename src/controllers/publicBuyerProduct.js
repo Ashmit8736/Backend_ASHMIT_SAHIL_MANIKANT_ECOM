@@ -775,6 +775,90 @@ export const getProductsByCategory = async (req, res) => {
   }
 };
 
+// export const getBuyerProductsByCategory = async (req, res) => {
+//   try {
+//     const categoryId = Number(req.params.id);
+
+//     const [categories] = await db.query(
+//       `
+//       WITH RECURSIVE category_tree AS (
+//         SELECT id
+//         FROM category_master
+//         WHERE id = ?
+
+//         UNION ALL
+
+//         SELECT cm.id
+//         FROM category_master cm
+//         INNER JOIN category_tree ct ON cm.parent_id = ct.id
+//       )
+//       SELECT id FROM category_tree
+//       `,
+//       [categoryId]
+//     );
+
+//     const categoryIds = categories.map(c => c.id);
+
+//     if (!categoryIds.length) {
+//       return res.json({ success: true, products: [] });
+//     }
+
+//     const [products] = await db.query(
+//       `
+//       -- SELLER PRODUCTS
+//       SELECT
+//         p.product_id,
+//         p.product_name,
+//         p.brand,
+//         p.product_price,
+//         p.rating_avg,
+//         p.remaining_stock,
+//         'seller' AS product_source,
+//         (
+//           SELECT JSON_ARRAYAGG(pu.url)
+//           FROM product_url pu
+//           WHERE pu.product_id = p.product_id
+//         ) AS images
+//       FROM product p
+//       WHERE p.category_master_id IN (?)
+
+//       UNION ALL
+
+//       -- SUPPLIER PRODUCTS
+//       SELECT
+//         sp.product_id,
+//         sp.product_name,
+//         sp.brand,
+//         sp.wholesale_price AS product_price,
+//          sp.rating_avg,
+//         sp.remaining_stock,
+//         'supplier' AS product_source,
+//         (
+//           SELECT JSON_ARRAYAGG(spu.url)
+//           FROM supplier_product_url spu
+//           WHERE spu.product_id = sp.product_id
+//         ) AS images
+//       FROM supplier_product sp
+//       WHERE sp.category_master_id IN (?)
+//       `,
+//       [categoryIds, categoryIds]
+//     );
+
+//     res.json({
+//       success: true,
+//       count: products.length,
+//       products,
+//     });
+
+//   } catch (error) {
+//     console.error("CATEGORY BUYER ERROR:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Internal server error",
+//     });
+//   }
+// };
+
 export const getBuyerProductsByCategory = async (req, res) => {
   try {
     const categoryId = Number(req.params.id);
@@ -813,6 +897,7 @@ export const getBuyerProductsByCategory = async (req, res) => {
         p.product_price,
         p.rating_avg,
         p.remaining_stock,
+        p.metal_type,
         'seller' AS product_source,
         (
           SELECT JSON_ARRAYAGG(pu.url)
@@ -830,8 +915,9 @@ export const getBuyerProductsByCategory = async (req, res) => {
         sp.product_name,
         sp.brand,
         sp.wholesale_price AS product_price,
-         sp.rating_avg,
+        sp.rating_avg,
         sp.remaining_stock,
+        sp.metal_type,
         'supplier' AS product_source,
         (
           SELECT JSON_ARRAYAGG(spu.url)
@@ -858,6 +944,9 @@ export const getBuyerProductsByCategory = async (req, res) => {
     });
   }
 };
+
+
+
 
 
 export const getBuyerCategoryProducts = async (req, res) => {

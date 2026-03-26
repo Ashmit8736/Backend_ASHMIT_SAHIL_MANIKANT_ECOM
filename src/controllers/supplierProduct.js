@@ -540,44 +540,31 @@ export const getSupplierOrders = async (req, res) => {
 
         const [rows] = await cartDb.query(
             `
-  SELECT
-    oi.order_item_id,
-    oi.order_id,
-    oi.product_id,
-    oi.quantity,
-    oi.subtotal,
-
-    bo.order_status,
-    bo.created_at,
-    bo.payment_mode,
-    bo.fulfillment_type,
-
-    COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
-    COALESCE(ba.phone, ba2.phone) AS buyer_phone,
-
-    sp.product_name
-
-  FROM order_items oi
-
-  JOIN buyer_orders bo
-    ON bo.order_id = oi.order_id
-
-  JOIN ecommerce_mojija_product.supplier_product sp
-    ON sp.product_id = oi.product_id
-   AND sp.supplier_id = ?
-
-  LEFT JOIN buyer_addresses ba
-    ON ba.address_id = bo.address_id
-
-  LEFT JOIN buyer_addresses ba2
-    ON ba2.buyer_id = bo.buyer_id
-
-  WHERE oi.owner_type = 'supplier'
-  ORDER BY bo.created_at DESC
-  `,
+            SELECT
+                oi.order_item_id,
+                oi.order_id,
+                oi.product_id,
+                oi.quantity,
+                oi.subtotal,
+                bo.order_status,
+                bo.created_at,
+                bo.payment_mode,
+                bo.fulfillment_type,
+                COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
+                COALESCE(ba.phone, ba2.phone) AS buyer_phone,
+                sp.product_name
+            FROM order_items oi
+            JOIN buyer_orders bo ON bo.order_id = oi.order_id
+            JOIN ecommerce_mojija_product.supplier_product sp 
+                ON sp.product_id = oi.product_id
+                AND sp.supplier_id = ?
+            LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
+            LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+            WHERE oi.owner_type = 'supplier'
+            ORDER BY bo.created_at DESC
+            `,
             [supplierId]
         );
-
 
         return res.json({
             success: true,
@@ -606,11 +593,6 @@ export const getSupplierOrders = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch supplier orders" });
     }
 };
-
-
-
-
-
 
 
 
