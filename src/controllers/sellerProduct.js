@@ -832,7 +832,7 @@ async function getSellerProducts(req, res) {
 
     res.json({
       success: true,
-      products: rows,
+      products: products,
     });
 
   } catch (error) {

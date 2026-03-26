@@ -530,86 +530,331 @@ export async function updateSupplierStock(req, res) {
 
 
 
+// export const getSupplierOrders = async (req, res) => {
+//     try {
+//         if (!req.supplier?.id) {
+//             return res.status(401).json({ message: "Unauthorized" });
+//         }
+
+//         const supplierId = req.supplier.id;
+
+//         const [rows] = await cartDb.query(
+//             `
+//   SELECT
+//     oi.order_item_id,
+//     oi.order_id,
+//     oi.product_id,
+//     oi.quantity,
+//     oi.subtotal,
+
+//     bo.order_status,
+//     bo.created_at,
+//     bo.payment_mode,
+//     bo.fulfillment_type,
+
+//     COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
+//     COALESCE(ba.phone, ba2.phone) AS buyer_phone,
+
+//     sp.product_name
+
+//   FROM order_items oi
+
+//   JOIN buyer_orders bo
+//     ON bo.order_id = oi.order_id
+
+//   JOIN ecommerce_mojija_product.supplier_product sp
+//     ON sp.product_id = oi.product_id
+//    AND sp.supplier_id = ?
+
+//   LEFT JOIN buyer_addresses ba
+//     ON ba.address_id = bo.address_id
+
+//   LEFT JOIN buyer_addresses ba2
+//     ON ba2.buyer_id = bo.buyer_id
+
+//   WHERE oi.owner_type = 'supplier'
+//   ORDER BY bo.created_at DESC
+//   `,
+//             [supplierId]
+//         );
+
+
+//         return res.json({
+//             success: true,
+//             data: rows.map(o => ({
+//                 orderItemId: o.order_item_id,
+//                 orderId: o.order_id,
+//                 date: o.created_at,
+//                 buyer: {
+//                     name: o.buyer_name,
+//                     phone: o.buyer_phone,
+//                 },
+//                 product: {
+//                     id: o.product_id,
+//                     name: o.product_name,
+//                 },
+//                 quantity: o.quantity,
+//                 amount: o.subtotal,
+//                 paymentMode: o.payment_mode,
+//                 fulfillmentType: o.fulfillment_type,
+//                 status: o.order_status,
+//             })),
+//         });
+
+//     } catch (err) {
+//         console.error("GET SUPPLIER ORDERS ERROR:", err);
+//         res.status(500).json({ message: "Failed to fetch supplier orders" });
+//     }
+// };
+
+
+// export const getSupplierOrders = async (req, res) => {
+//   try {
+//     if (!req.supplier?.id) {
+//       return res.status(401).json({ message: "Unauthorized" });
+//     }
+
+//     const supplierId = req.supplier.id;
+
+//     const page   = parseInt(req.query.page) || 1;
+//     const limit  = parseInt(req.query.limit) || 10;
+//     const offset = (page - 1) * limit;
+
+//     const { search, status, sort } = req.query;
+
+//     let where = `WHERE oi.owner_type = 'supplier' AND sp.supplier_id = ?`;
+//     let params = [supplierId];
+
+//     if (status) {
+//       where += ` AND bo.order_status = ?`;
+//       params.push(status);
+//     }
+
+//     if (search) {
+//       where += ` AND (ba.full_name LIKE ? OR ba.phone LIKE ?)`;
+//       params.push(`%${search}%`, `%${search}%`);
+//     }
+
+//     let orderBy = `ORDER BY bo.created_at DESC`;
+
+//     if (sort === "Oldest First") orderBy = `ORDER BY bo.created_at ASC`;
+//     if (sort === "Highest Value") orderBy = `ORDER BY oi.subtotal DESC`;
+//     if (sort === "Lowest Value") orderBy = `ORDER BY oi.subtotal ASC`;
+
+//     // ✅ COUNT
+//     const [[{ total }]] = await cartDb.query(
+//       `
+//       SELECT COUNT(*) as total
+//       FROM order_items oi
+//       JOIN buyer_orders bo ON bo.order_id = oi.order_id
+//       JOIN ecommerce_mojija_product.supplier_product sp
+//         ON sp.product_id = oi.product_id
+//       LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
+//       ${where}
+//       `,
+//       params
+//     );
+
+//     // ✅ DATA
+//     const [rows] = await cartDb.query(
+//       `
+//       SELECT
+//         oi.order_item_id,
+//         oi.order_id,
+//         oi.product_id,
+//         oi.quantity,
+//         oi.subtotal,
+
+//         bo.order_status,
+//         bo.created_at,
+//         bo.payment_mode,
+
+//         COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
+//         COALESCE(ba.phone, ba2.phone) AS buyer_phone,
+
+//         sp.product_name
+
+//       FROM order_items oi
+//       JOIN buyer_orders bo ON bo.order_id = oi.order_id
+//       JOIN ecommerce_mojija_product.supplier_product sp
+//         ON sp.product_id = oi.product_id
+//       LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
+//       LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+
+//       ${where}
+//       ${orderBy}
+//       LIMIT ? OFFSET ?
+//       `,
+//       [...params, limit, offset]
+//     );
+
+//     return res.json({
+//       success: true,
+//       data: rows.map((o) => ({
+//         orderItemId: o.order_item_id,
+//         orderId: o.order_id,
+//         date: o.created_at
+//           ? new Date(o.created_at).toISOString()
+//           : null,
+//         buyer: {
+//           name: o.buyer_name,
+//           phone: o.buyer_phone,
+//         },
+//         product: {
+//           id: o.product_id,
+//           name: o.product_name,
+//         },
+//         quantity: o.quantity,
+//         amount: o.subtotal,
+//         paymentMode: o.payment_mode,
+//         status: o.order_status,
+//       })),
+//       pagination: {
+//         currentPage: page,
+//         totalPages: Math.ceil(total / limit),
+//         totalRecords: total,
+//         limit,
+//       },
+//     });
+
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: "Failed to fetch supplier orders" });
+//   }
+// };
+
+
 export const getSupplierOrders = async (req, res) => {
-    try {
-        if (!req.supplier?.id) {
-            return res.status(401).json({ message: "Unauthorized" });
-        }
-
-        const supplierId = req.supplier.id;
-
-        const [rows] = await cartDb.query(
-            `
-  SELECT
-    oi.order_item_id,
-    oi.order_id,
-    oi.product_id,
-    oi.quantity,
-    oi.subtotal,
-
-    bo.order_status,
-    bo.created_at,
-    bo.payment_mode,
-    bo.fulfillment_type,
-
-    COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
-    COALESCE(ba.phone, ba2.phone) AS buyer_phone,
-
-    sp.product_name
-
-  FROM order_items oi
-
-  JOIN buyer_orders bo
-    ON bo.order_id = oi.order_id
-
-  JOIN ecommerce_mojija_product.supplier_product sp
-    ON sp.product_id = oi.product_id
-   AND sp.supplier_id = ?
-
-  LEFT JOIN buyer_addresses ba
-    ON ba.address_id = bo.address_id
-
-  LEFT JOIN buyer_addresses ba2
-    ON ba2.buyer_id = bo.buyer_id
-
-  WHERE oi.owner_type = 'supplier'
-  ORDER BY bo.created_at DESC
-  `,
-            [supplierId]
-        );
-
-
-        return res.json({
-            success: true,
-            data: rows.map(o => ({
-                orderItemId: o.order_item_id,
-                orderId: o.order_id,
-                date: o.created_at,
-                buyer: {
-                    name: o.buyer_name,
-                    phone: o.buyer_phone,
-                },
-                product: {
-                    id: o.product_id,
-                    name: o.product_name,
-                },
-                quantity: o.quantity,
-                amount: o.subtotal,
-                paymentMode: o.payment_mode,
-                fulfillmentType: o.fulfillment_type,
-                status: o.order_status,
-            })),
-        });
-
-    } catch (err) {
-        console.error("GET SUPPLIER ORDERS ERROR:", err);
-        res.status(500).json({ message: "Failed to fetch supplier orders" });
+  try {
+    if (!req.supplier?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
+
+    const supplierId = req.supplier.id;
+
+    const page   = parseInt(req.query.page) || 1;
+    const limit  = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const { search, status, sort } = req.query;
+
+    let where = `WHERE oi.owner_type = 'supplier' AND sp.supplier_id = ?`;
+    let params = [supplierId];
+
+    /* ================= SEARCH ================= */
+    if (search) {
+      where += `
+        AND (
+          LOWER(ba.full_name) LIKE LOWER(?) OR
+          ba.phone LIKE ? OR
+          LOWER(ba2.full_name) LIKE LOWER(?) OR
+          ba2.phone LIKE ?
+        )
+      `;
+
+      params.push(
+        `%${search}%`,
+        `%${search}%`,
+        `%${search}%`,
+        `%${search}%`
+      );
+    }
+
+    /* ================= STATUS ================= */
+    if (status) {
+      where += ` AND bo.order_status = ?`;
+      params.push(status);
+    }
+
+    /* ================= SORT ================= */
+    let orderBy = `ORDER BY bo.created_at DESC`;
+
+    if (sort === "Oldest First") orderBy = `ORDER BY bo.created_at ASC`;
+    if (sort === "Highest Value") orderBy = `ORDER BY oi.subtotal DESC`;
+    if (sort === "Lowest Value") orderBy = `ORDER BY oi.subtotal ASC`;
+
+    /* ================= COUNT ================= */
+    const [[{ total }]] = await cartDb.query(
+      `
+      SELECT COUNT(*) as total
+      FROM order_items oi
+      JOIN buyer_orders bo ON bo.order_id = oi.order_id
+      JOIN ecommerce_mojija_product.supplier_product sp
+        ON sp.product_id = oi.product_id
+      LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
+      LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+      ${where}
+      `,
+      params
+    );
+
+    /* ================= DATA ================= */
+    const [rows] = await cartDb.query(
+      `
+      SELECT
+        oi.order_item_id,
+        oi.order_id,
+        oi.product_id,
+        oi.quantity,
+        oi.subtotal,
+
+        bo.order_status,
+        bo.created_at,
+        bo.payment_mode,
+
+        COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
+        COALESCE(ba.phone, ba2.phone) AS buyer_phone,
+
+        sp.product_name
+
+      FROM order_items oi
+      JOIN buyer_orders bo ON bo.order_id = oi.order_id
+      JOIN ecommerce_mojija_product.supplier_product sp
+        ON sp.product_id = oi.product_id
+      LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
+      LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+
+      ${where}
+      ${orderBy}
+      LIMIT ? OFFSET ?
+      `,
+      [...params, limit, offset]
+    );
+
+    return res.json({
+      success: true,
+      data: rows.map((o) => ({
+        orderItemId: o.order_item_id,
+        orderId: o.order_id,
+        date: o.created_at
+          ? new Date(o.created_at).toISOString()
+          : null,
+        buyer: {
+          name: o.buyer_name,
+          phone: o.buyer_phone,
+        },
+        product: {
+          id: o.product_id,
+          name: o.product_name,
+        },
+        quantity: o.quantity,
+        amount: o.subtotal,
+        paymentMode: o.payment_mode,
+        status: o.order_status,
+      })),
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
+        limit,
+      },
+    });
+
+  } catch (err) {
+    console.error("GET SUPPLIER ORDERS ERROR:", err);
+    res.status(500).json({ message: "Failed to fetch supplier orders" });
+  }
 };
-
-
-
-
 
 
 
