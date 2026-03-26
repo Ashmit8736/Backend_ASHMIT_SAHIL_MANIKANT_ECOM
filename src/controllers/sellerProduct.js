@@ -645,7 +645,7 @@ export const getSellerOrders = async (req, res) => {
     bo.order_id AS order_id,
     bo.order_status AS status,
     bo.fulfillment_type,
-    bo.created_at,
+    DATE_FORMAT(CONVERT_TZ(bo.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS created_at,
 
     ba.full_name AS buyer_name,
     ba.phone AS buyer_phone,
@@ -679,17 +679,14 @@ export const getSellerOrders = async (req, res) => {
       status: o.status,
       fulfillment_type: o.fulfillment_type,
       payment_mode: "COD",
-
       product_name: o.product_name,
       quantity: o.quantity,
       amount: o.amount,
-
       buyer_name: o.buyer_name,
       buyer_phone: o.buyer_phone,
 
-      // ✅ created_at ko ISO string mein convert karo
-      created_at: o.created_at ? new Date(o.created_at).toISOString() : null,
-
+      // ✅ Ab directly string bhejo — already IST hai
+      created_at: o.created_at,
 
       address:
         o.fulfillment_type === "pickup"
@@ -701,6 +698,7 @@ export const getSellerOrders = async (req, res) => {
             pincode: o.pincode,
           }
     }));
+
     return res.json({ success: true, orders });
 
   } catch (err) {
@@ -808,9 +806,8 @@ async function getSellerProducts(req, res) {
         p.remaining_stock,
         p.short_description,
         p.long_description,
-        p.created_at, 
+        DATE_FORMAT(CONVERT_TZ(p.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS created_at,
         cm.category_name,
-
         JSON_ARRAYAGG(JSON_EXTRACT(pu.url, '$[0]')) AS image_urls
 
       FROM product p
@@ -824,15 +821,10 @@ async function getSellerProducts(req, res) {
       [sellerId]
     );
 
-        // ✅ created_at ko ISO string mein convert karo
-    const products = rows.map(p => ({
-      ...p,
-      created_at: p.created_at ? new Date(p.created_at).toISOString() : null
-    }));
-
+    // ✅ Ab koi conversion nahi — directly bhejo
     res.json({
       success: true,
-      products: products,
+      products: rows,
     });
 
   } catch (error) {
