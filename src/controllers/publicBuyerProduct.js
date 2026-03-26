@@ -120,7 +120,8 @@ export const getProductsByCategory = async (req, res) => {
         p.gst_verified,
         p.rating_avg,
         p.remaining_stock,
-        'seller' AS source,
+        p.metal_type,
+        'seller' AS product_source,
         (
           SELECT JSON_ARRAYAGG(JSON_EXTRACT(pu.url, '$[0]'))
           FROM product_url pu
@@ -144,7 +145,8 @@ export const getProductsByCategory = async (req, res) => {
         sp.gst_verified,
         sp.rating_avg,
         NULL AS remaining_stock,
-        'supplier' AS source,
+        sp.metal_type,
+        'supplier' AS product_source,
         (
           SELECT JSON_ARRAYAGG(spu.url)
           FROM supplier_product_url spu
@@ -231,6 +233,7 @@ export const getBuyerProductsByCategory = async (req, res) => {
         p.product_price,
         p.rating_avg,
         p.remaining_stock,
+        p.metal_type,
         'seller' AS product_source,
         (
           SELECT JSON_ARRAYAGG(pu.url)
@@ -250,6 +253,7 @@ export const getBuyerProductsByCategory = async (req, res) => {
         sp.wholesale_price AS product_price,
         sp.rating_avg,
         sp.remaining_stock,
+        sp.metal_type,
         'supplier' AS product_source,
         (
           SELECT JSON_ARRAYAGG(spu.url)

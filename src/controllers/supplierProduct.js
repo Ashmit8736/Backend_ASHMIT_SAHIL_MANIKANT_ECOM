@@ -167,33 +167,6 @@ export async function supplierProductImage(req, res) {
 }
 
 
-
-// export async function getSupplierProducts(req, res) {
-//     try {
-//         const db = await connectProductDb();
-//         const supplier_id = req.supplier.id;
-
-//         const [rows] = await db.query(`
-//       SELECT 
-//         p.product_id,
-//         p.product_name,
-//         p.product_price,
-//         p.created_at, 
-//         JSON_ARRAYAGG(JSON_EXTRACT(spu.url, '$[0]')) AS images
-//       FROM supplier_product p
-//       LEFT JOIN supplier_product_url spu ON p.product_id = spu.product_id
-//       WHERE p.supplier_id = ?
-//       GROUP BY p.product_id
-//       ORDER BY p.created_at DESC
-//     `, [supplier_id]);
-
-//         res.json({ success: true, products: rows });
-
-//     } catch (err) {
-//         console.error("Supplier Get Products Error:", err);
-//         res.status(500).json({ message: "Internal server error" });
-//     }
-// }
 export async function getSupplierProducts(req, res) {
     try {
         // const db = await connectProductDb();
@@ -294,103 +267,6 @@ export async function deleteSupplierProduct(req, res) {
     }
 }
 
-// export async function updateSupplierProduct(req, res) {
-//     try {
-//         // const db = await connectProductDb();
-//         const supplier_id = req.supplier.id;
-//         const { id: product_id } = req.params;
-
-//         const {
-//             product_name,
-//             sku,
-//             brand,
-//             wholesale_price,
-//             product_unit,
-//             total_stock,
-//             min_stock,
-//             short_description,
-//             long_description,
-//         } = req.body;
-
-//         const [check] = await db.query(
-//             "SELECT * FROM supplier_product WHERE product_id = ? AND supplier_id = ?",
-//             [product_id, supplier_id]
-//         );
-
-//         if (!check.length) {
-//             return res.status(404).json({ message: "Product not found or unauthorized" });
-//         }
-
-//         const total = Number(total_stock) || check[0].total_stock;
-
-//         await db.query(
-//             `
-//       UPDATE supplier_product SET
-//         product_name = ?,
-//         sku = ?,
-//         brand = ?,
-//         wholesale_price = ?,
-//         product_unit = ?,
-//         total_stock = ?,
-//         remaining_stock = ?,
-//         stock = ?,
-//         min_stock = ?,
-//         short_description = ?,
-//         long_description = ?
-//       WHERE product_id = ? AND supplier_id = ?
-//       `,
-//             [
-//                 product_name,
-//                 sku,
-//                 brand,
-//                 wholesale_price,
-//                 product_unit,
-//                 total,
-//                 total,
-//                 total,
-//                 min_stock,
-//                 short_description,
-//                 long_description,
-//                 product_id,
-//                 supplier_id,
-//             ]
-//         );
-
-//         res.json({ message: "Product updated successfully", product_id });
-
-//     } catch (err) {
-//         console.error("Update Supplier Product Error:", err);
-//         res.status(500).json({ message: "Failed to update product" });
-//     }
-// }
-
-
-// export async function getSupplierInventory(req, res) {
-//     try {
-//         // const db = await connectProductDb();
-//         const supplier_id = req.supplier.id;
-
-//         const [rows] = await db.query(`
-//             SELECT 
-//                 p.product_id AS id,
-//                 p.product_name AS name,
-//                 p.brand,
-//                 p.wholesale_price,
-//                 p.remaining_stock AS stock,
-//                 JSON_ARRAYAGG(JSON_EXTRACT(spu.url, '$[0]')) AS images
-//             FROM supplier_product p
-//             LEFT JOIN supplier_product_url spu ON p.product_id = spu.product_id
-//             WHERE p.supplier_id = ?
-//             GROUP BY p.product_id
-//         `, [supplier_id]);
-
-//         res.json({ success: true, inventory: rows });
-
-//     } catch (err) {
-//         console.error("Supplier Inventory Error:", err);
-//         res.status(500).json({ message: "Failed to get inventory" });
-//     }
-// }
 
 export async function updateSupplierProduct(req, res) {
     try {
@@ -530,86 +406,139 @@ export async function updateSupplierStock(req, res) {
 
 
 
+
+
 export const getSupplierOrders = async (req, res) => {
-    try {
-        if (!req.supplier?.id) {
-            return res.status(401).json({ message: "Unauthorized" });
-        }
-
-        const supplierId = req.supplier.id;
-
-        const [rows] = await cartDb.query(
-            `
-  SELECT
-    oi.order_item_id,
-    oi.order_id,
-    oi.product_id,
-    oi.quantity,
-    oi.subtotal,
-
-    bo.order_status,
-    bo.created_at,
-    bo.payment_mode,
-    bo.fulfillment_type,
-
-    COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
-    COALESCE(ba.phone, ba2.phone) AS buyer_phone,
-
-    sp.product_name
-
-  FROM order_items oi
-
-  JOIN buyer_orders bo
-    ON bo.order_id = oi.order_id
-
-  JOIN ecommerce_mojija_product.supplier_product sp
-    ON sp.product_id = oi.product_id
-   AND sp.supplier_id = ?
-
-  LEFT JOIN buyer_addresses ba
-    ON ba.address_id = bo.address_id
-
-  LEFT JOIN buyer_addresses ba2
-    ON ba2.buyer_id = bo.buyer_id
-
-  WHERE oi.owner_type = 'supplier'
-  ORDER BY bo.created_at DESC
-  `,
-            [supplierId]
-        );
-
-
-        return res.json({
-            success: true,
-            data: rows.map(o => ({
-                orderItemId: o.order_item_id,
-                orderId: o.order_id,
-                date: o.created_at,
-                buyer: {
-                    name: o.buyer_name,
-                    phone: o.buyer_phone,
-                },
-                product: {
-                    id: o.product_id,
-                    name: o.product_name,
-                },
-                quantity: o.quantity,
-                amount: o.subtotal,
-                paymentMode: o.payment_mode,
-                fulfillmentType: o.fulfillment_type,
-                status: o.order_status,
-            })),
-        });
-
-    } catch (err) {
-        console.error("GET SUPPLIER ORDERS ERROR:", err);
-        res.status(500).json({ message: "Failed to fetch supplier orders" });
+  try {
+    if (!req.supplier?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
+
+    const supplierId = req.supplier.id;
+
+    const page   = parseInt(req.query.page) || 1;
+    const limit  = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const { search, status, sort } = req.query;
+
+    let where = `WHERE oi.owner_type = 'supplier' AND sp.supplier_id = ?`;
+    let params = [supplierId];
+
+    /* ================= SEARCH ================= */
+    if (search) {
+      where += `
+        AND (
+          LOWER(ba.full_name) LIKE LOWER(?) OR
+          ba.phone LIKE ? OR
+          LOWER(ba2.full_name) LIKE LOWER(?) OR
+          ba2.phone LIKE ?
+        )
+      `;
+
+      params.push(
+        `%${search}%`,
+        `%${search}%`,
+        `%${search}%`,
+        `%${search}%`
+      );
+    }
+
+    /* ================= STATUS ================= */
+    if (status) {
+      where += ` AND bo.order_status = ?`;
+      params.push(status);
+    }
+
+    /* ================= SORT ================= */
+    let orderBy = `ORDER BY bo.created_at DESC`;
+
+    if (sort === "Oldest First") orderBy = `ORDER BY bo.created_at ASC`;
+    if (sort === "Highest Value") orderBy = `ORDER BY oi.subtotal DESC`;
+    if (sort === "Lowest Value") orderBy = `ORDER BY oi.subtotal ASC`;
+
+    /* ================= COUNT ================= */
+    const [[{ total }]] = await cartDb.query(
+      `
+      SELECT COUNT(*) as total
+      FROM order_items oi
+      JOIN buyer_orders bo ON bo.order_id = oi.order_id
+      JOIN ecommerce_mojija_product.supplier_product sp
+        ON sp.product_id = oi.product_id
+      LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
+      LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+      ${where}
+      `,
+      params
+    );
+
+    /* ================= DATA ================= */
+    const [rows] = await cartDb.query(
+      `
+      SELECT
+        oi.order_item_id,
+        oi.order_id,
+        oi.product_id,
+        oi.quantity,
+        oi.subtotal,
+
+        bo.order_status,
+        bo.created_at,
+        bo.payment_mode,
+
+        COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
+        COALESCE(ba.phone, ba2.phone) AS buyer_phone,
+
+        sp.product_name
+
+      FROM order_items oi
+      JOIN buyer_orders bo ON bo.order_id = oi.order_id
+      JOIN ecommerce_mojija_product.supplier_product sp
+        ON sp.product_id = oi.product_id
+      LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
+      LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+
+      ${where}
+      ${orderBy}
+      LIMIT ? OFFSET ?
+      `,
+      [...params, limit, offset]
+    );
+
+    return res.json({
+      success: true,
+      data: rows.map((o) => ({
+        orderItemId: o.order_item_id,
+        orderId: o.order_id,
+        date: o.created_at
+          ? new Date(o.created_at).toISOString()
+          : null,
+        buyer: {
+          name: o.buyer_name,
+          phone: o.buyer_phone,
+        },
+        product: {
+          id: o.product_id,
+          name: o.product_name,
+        },
+        quantity: o.quantity,
+        amount: o.subtotal,
+        paymentMode: o.payment_mode,
+        status: o.order_status,
+      })),
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
+        limit,
+      },
+    });
+
+  } catch (err) {
+    console.error("GET SUPPLIER ORDERS ERROR:", err);
+    res.status(500).json({ message: "Failed to fetch supplier orders" });
+  }
 };
-
-
-
-
 
 
 
@@ -686,70 +615,6 @@ export const updateSupplierOrderStatus = async (req, res) => {
 };
 
 
-
-
-
-
-
-
-
-
-// export async function getAllSupplierProduct(req, res) {
-//     try {
-//         // const db = await connectProductDb();
-//         const supplier_id = req.supplier.id;
-
-//         const page = parseInt(req.query.page) || 1;
-//         const limit = parseInt(req.query.limit) || 10;
-//         const offset = (page - 1) * limit;
-
-//         const [rows] = await db.query(
-//             `
-//             SELECT 
-//                 p.product_id,
-//                 p.product_name,
-//                 p.sku,
-//                 p.brand,
-//                 p.short_description,
-//                 p.long_description,
-//                 p.wholesale_price,
-//                 p.product_unit,
-//                 p.total_stock,
-//                 p.remaining_stock,
-//                 p.status,
-//                 p.created_at,
-                
-//                 JSON_ARRAYAGG(spu.url) AS images
-
-
-//             FROM supplier_product p
-//             LEFT JOIN supplier_product_url spu 
-//                 ON p.product_id = spu.product_id
-//             WHERE p.supplier_id = ?
-//             GROUP BY p.product_id
-//             ORDER BY p.product_id DESC
-//             LIMIT ? OFFSET ?
-//             `,
-//             [supplier_id, limit, offset]
-//         );
-
-//         const [[count]] = await db.query(
-//             `SELECT COUNT(*) AS total FROM supplier_product WHERE supplier_id = ?`,
-//             [supplier_id]
-//         );
-
-//         res.json({
-//             data: rows,
-//             currentPage: page,
-//             totalPages: Math.ceil(count.total / limit),
-//             totalRecords: count.total
-//         });
-
-//     } catch (err) {
-//         console.error("Get Supplier Products Error:", err);
-//         res.status(500).json({ message: "Failed to fetch supplier products" });
-//     }
-// }
 
 export async function getAllSupplierProduct(req, res) {
     try {
@@ -2084,7 +1949,6 @@ export const getSupplierDashboardStats = async (req, res) => {
 
 
 
-// export const getSupplierRecentOrders = async (req, res) => {
 //     try {
 //         if (!req.supplier?.id) {
 //             return res.status(401).json({
