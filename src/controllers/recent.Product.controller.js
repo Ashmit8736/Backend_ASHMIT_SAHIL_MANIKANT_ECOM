@@ -1,36 +1,3 @@
-// import db from "../db/productDB.js";
-
-// export const getRecentProducts = async (req, res) => {
-//   try {
-//     const { ids } = req.query;
-
-//     if (!ids) return res.json([]);
-
-//     const idArray = ids.split(",");
-
-//     const [rows] = await db.query(`
-//   SELECT 
-//     p.product_id,
-//     p.product_name,
-//     p.product_price AS price,
-//     JSON_UNQUOTE(JSON_EXTRACT(MIN(u.url), '$[0]')) AS thumbnail
-//   FROM product p
-//   LEFT JOIN product_url u 
-//   ON p.product_id = u.product_id
-//   WHERE p.product_id IN (${idArray})
-//   GROUP BY p.product_id
-// `);
-
-
-//     res.json(rows);
-
-//   } catch (error) {
-//     console.error("RECENT PRODUCT ERROR:", error);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// };
-
-
 import db from "../db/productDB.js";
 
 export const getRecentProducts = async (req, res) => {

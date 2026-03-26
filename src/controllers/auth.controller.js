@@ -533,37 +533,6 @@ async function updatePhone(req, res) {
     return res.status(500).json({ message: "Internal server error" });
   }
 }
-// async function getUserProfile(req, res) {
-//   try {
-//     const [rows] = await db.query(
-//       "SELECT id, username, email, phone, gender FROM user WHERE id = ?",
-//       [req.user.id]
-//     );
-
-//     if (!rows.length) {
-//       return res.status(404).json({ message: "User not found" });
-//     }
-
-//     const user = rows[0];
-
-//     return res.status(200).json({
-//       user: {
-//         username: user.username,
-//         email: user.email,
-//         phone: user.phone,
-//         gender:
-//           user.gender === "male"
-//             ? "Male"
-//             : user.gender === "female"
-//               ? "Female"
-//               : "Other",
-//       },
-//     });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// }
 
 async function getUserProfile(req, res) {
   try {

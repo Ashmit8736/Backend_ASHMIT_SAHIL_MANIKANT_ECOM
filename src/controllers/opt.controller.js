@@ -61,66 +61,6 @@ async function sendSignupOtp(req, res) {
 }
 
 
-/* =================================================
-   SEND SIGNUP OTP (NEW CONTROLLER - SAFE)
-================================================= */
-// async function sendSignupOtp1(req, res) {
-//   try {
-//     let { phone } = req.body;
-
-//     /* ---------- VALIDATION ---------- */
-//     if (!phone) {
-//       return res.status(400).json({ message: "Phone is required" });
-//     }
-
-//     // only digits
-//     phone = phone.toString().replace(/\D/g, "");
-
-//     if (phone.length !== 10) {
-//       return res.status(400).json({ message: "Invalid phone number" });
-//     }
-
-//     /* ---------- GLOBAL UNIQUE CHECK ---------- */
-//     const [exists] = await db.query(
-//       "SELECT id FROM auth_users WHERE phone = ? LIMIT 1",
-//       [phone]
-//     );
-
-//     if (exists.length > 0) {
-//       return res.status(409).json({
-//         type: "exists",
-//         message: "Account already exists with this phone number. Please login."
-//       });
-//     }
-
-//     /* ---------- GENERATE OTP ---------- */
-//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-//     /* ---------- SAVE OTP (REDIS) ---------- */
-//     const otpKey = `signup_otp:${phone}`;
-//     await redis.set(otpKey, otp, "EX", 300); // 5 min
-
-//     /* ---------- DLT APPROVED MESSAGE (EXACT TEXT) ---------- */
-//     const message =
-//       `${otp} is your Login OTP. Do not share it with anyone Regards MOJIJA.`;
-
-//     /* ---------- SEND SMS (NO +91) ---------- */
-//     await sendSMS(phone, message);
-
-//     console.log("✅ SIGNUP OTP 1 SENT:", phone, otp);
-
-//     return res.status(200).json({
-//       message: "Signup OTP sent successfully"
-//     });
-
-//   } catch (error) {
-//     console.error("sendSignupOtp1 ERROR:", error);
-//     return res.status(500).json({
-//       message: "Failed to send signup OTP"
-//     });
-//   }
-// }
-
 
 async function sendSignupOtp1(req, res) {
   try {
@@ -168,57 +108,6 @@ async function sendSignupOtp1(req, res) {
 }
 
 
-
-// async function sendForgotOtp(req, res) {
-//   try {
-//     let { phone } = req.body;
-
-//     if (!phone) {
-//       return res.status(400).json({ message: "Phone is required" });
-//     }
-
-//     // 🔥 clean phone (only 10 digits)
-//     phone = phone.toString().replace(/\D/g, "");
-//     if (phone.length !== 10) {
-//       return res.status(400).json({ message: "Invalid phone number" });
-//     }
-
-//     /* ---------- CHECK USER EXISTS ---------- */
-//     const [exists] = await db.query(
-//       "SELECT id FROM user WHERE phone = ? LIMIT 1",
-//       [phone]
-//     );
-
-//     if (!exists.length) {
-//       return res.status(404).json({ message: "User not found" });
-//     }
-
-//     /* ---------- GENERATE OTP ---------- */
-//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-//     /* ---------- SAVE OTP (REDIS) ---------- */
-//     await redis.set(`forgot_pass_otp:${phone}`, otp, "EX", 300); // 5 min
-
-//     /* ---------- 🔥 DLT APPROVED MESSAGE (EXACT) ---------- */
-//     const message =
-//       // `${otp} is your Login OTP. Do not share it with anyone Regards MOJIJA.`;
-
-//       `${otp} is your password reset OTP. Do not share it with anyone Regards MOJIJA`;
-
-//     /* ---------- SEND SMS (91 PREFIX REQUIRED) ---------- */
-//     await sendSMS2("91" + phone, message);
-
-//     console.log("BUYER FORGOT OTP SENT:", phone, otp);
-
-//     return res.status(200).json({
-//       message: "Forgot OTP sent successfully",
-//     });
-
-//   } catch (error) {
-//     console.error("sendForgotOtp ERROR:", error);
-//     return res.status(500).json({ message: "Internal server error" });
-//   }
-// }
 
 async function sendForgotOtp(req, res) {
   try {

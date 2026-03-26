@@ -276,26 +276,6 @@ async function supplierForgotPasswordSendOtp(req, res) {
 }
 
 
-
-// async function supplierForgotPasswordVerifyOtp(req, res) {
-//   const { phone, otp } = req.body;
-//   if (!phone || !otp)
-//     return res.status(400).json({ message: "Phone & OTP required" });
-
-//   const storedOtp = await redis.get(`supplier_forgot_otp:${phone}`);
-//   if (!storedOtp)
-//     return res.status(400).json({ message: "OTP expired" });
-
-//   if (storedOtp !== otp.toString())
-//     return res.status(401).json({ message: "Invalid OTP" });
-
-//   await redis.del(`supplier_forgot_otp:${phone}`);
-//   await redis.set(`supplier_reset_allowed:${phone}`, "true", "EX", 600);
-
-//   return res.status(200).json({ message: "OTP verified" });
-// }
-
-
 async function supplierForgotPasswordVerifyOtp(req, res) {
   let { phone, otp } = req.body;
 

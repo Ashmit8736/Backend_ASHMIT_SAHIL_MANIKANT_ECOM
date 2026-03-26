@@ -6,40 +6,6 @@ const { sendEmail } = require("../services/sendEmail.service"); // Email OTP Ser
 /* ============================================================
    📌 SEND OTP TO PHONE (REGISTER)
 ============================================================ */
-// exports.supplierRegisterSendOTP = async (req, res) => {
-//   try {
-//     // const db = await connectDb();
-//     const { phone } = req.body;
-
-//     if (!phone) return res.status(400).json({ message: "Phone is required" });
-
-//     const [supplier] = await db.query(
-//       `SELECT * FROM supplier WHERE phone = ?`,
-//       [phone]
-//     );
-
-//     if (supplier.length > 0)
-//       return res.status(409).json({ message: "Phone already registered!" });
-
-//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-//     const formattedPhone = phone.startsWith("+91") ? phone : "+91" + phone;
-
-//     await redis.set(`supplier_otp:${formattedPhone}`, otp, "EX", 300);
-
-//     console.log("Supplier Phone OTP:", otp);
-
-//     await sendSMS(
-//       formattedPhone,
-//       `${otp} is your Supplier Verification OTP - DO NOT SHARE`
-//     );
-
-//     return res.status(200).json({ message: "Phone OTP Sent Successfully!" });
-
-//   } catch (error) {
-//     console.error("Phone OTP SEND ERROR:", error);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// };
 
 exports.supplierRegisterSendOTP = async (req, res) => {
   try {
@@ -92,37 +58,7 @@ exports.supplierRegisterSendOTP = async (req, res) => {
 /* ============================================================
    📌 VERIFY OTP FOR PHONE
 ============================================================ */
-// exports.supplierRegisterVerifyOTP = async (req, res) => {
-//   try {
-//     const { phone, otp } = req.body;
 
-//     if (!phone || !otp)
-//       return res.status(400).json({ message: "Phone & OTP required" });
-
-//     const formattedPhone = phone.startsWith("+91") ? phone : "+91" + phone;
-//     const storedOtp = await redis.get(`supplier_otp:${formattedPhone}`);
-
-//     if (!storedOtp)
-//       return res.status(400).json({ message: "OTP expired or invalid" });
-
-//     if (storedOtp !== otp.toString())
-//       return res.status(401).json({ message: "Invalid OTP" });
-
-//     await redis.del(`supplier_otp:${formattedPhone}`);
-
-//     // ⭐ Set Verified Flag in Redis
-//     await redis.set(`supplier_phone_verified:${phone}`, "true", "EX", 600);
-
-//     return res.status(200).json({
-//       message: "Phone Verified Successfully",
-//       verifyPhone: true,
-//     });
-
-//   } catch (error) {
-//     console.error("Phone OTP VERIFY ERROR:", error);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// };
 
 exports.supplierRegisterVerifyOTP = async (req, res) => {
   try {

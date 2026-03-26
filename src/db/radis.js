@@ -1,24 +1,3 @@
-// const { createClient } = require("redis");
-
-// const redis = createClient({
-//   username: "default",
-//   password: process.env.REDIS_PASSWORD,
-//   socket: {
-//     host: process.env.REDIS_HOST,
-//     port: Number(process.env.REDIS_PORT),
-//     tls: {
-//       rejectUnauthorized: false
-//     }
-//   }
-// });
-
-// redis.on("connect", () => console.log("🔥 Redis Connected (TLS)"));
-// redis.on("ready", () => console.log("⚡ Redis Ready"));
-// redis.on("error", (err) => console.error("❌ Redis Error:", err));
-// redis.on("end", () => console.log("🔌 Redis Closed"));
-
-// redis.connect().catch(console.error);
-
 // module.exports = redis;
 const { createClient } = require("redis");
 
