@@ -27,6 +27,7 @@ export async function supplierProduct(req, res) {
             wholesale_moq,
             product_unit,
             total_stock,
+            remaining_stock, 
             min_stock,
             city,
             state,
@@ -70,29 +71,33 @@ export async function supplierProduct(req, res) {
         /* ===============================
            🔥 CALL STORED PROCEDURE
         =============================== */
-        const [rows] = await db.query(
-            `CALL sp_create_supplier_product(
-    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+/* ===============================
+   🔥 CALL STORED PROCEDURE
+=============================== */
+const [rows] = await db.query(
+    `CALL sp_create_supplier_product(
+    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
   )`,
-            [
-                supplier_id,
-                product_name,
-                sku,
-                brand,
-                short_description,
-                long_description,
-                category_master_id,
-                wholesale_price,
-                wholesale_moq,
-                product_unit,
-                total_stock,
-                min_stock,
-                city,
-                state,
-                country,
-                gst_verified
-            ]
-        );
+    [
+        supplier_id,          // 1
+        product_name,         // 2
+        sku,                  // 3
+        brand,                // 4
+        short_description,    // 5
+        long_description,     // 6
+        category_master_id,   // 7
+        wholesale_price,      // 8
+        wholesale_moq,        // 9
+        product_unit,         // 10
+        total_stock,          // 11 ✅ total_stock
+        remaining_stock ?? total_stock,  // 12 ✅ remaining_stock
+        min_stock,            // 13
+        city,                 // 14
+        state,                // 15
+        country,              // 16
+        gst_verified          // 17
+    ]
+);
 
 
 
@@ -125,7 +130,7 @@ export async function supplierProductImage(req, res) {
         const product_id = req.params.id; // ✅ FIX
 
         if (!product_id) {
-            return res.status(400).json({ message: "product_id required" });
+            return res.status(400).json({ message: "product_id required" }); 
         }
 
         const [product] = await db.query(
@@ -227,7 +232,7 @@ export async function getSupplierProducts(req, res) {
 
 
 export async function deleteSupplierProduct(req, res) {
-    try {
+    try { 
         // const db = await connectProductDb();
         const supplier_id = req.supplier.id;
         const { id: product_id } = req.params;
