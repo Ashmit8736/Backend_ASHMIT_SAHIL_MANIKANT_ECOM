@@ -5,6 +5,10 @@ import { uploadImage } from "../services/services.js";
 
 import cartDb from "../db/cartDb.js";
 
+
+
+
+
 async function sellerProduct(req, res) {
   try {
     const { id: seller_id } = req.seller;
@@ -37,7 +41,7 @@ async function sellerProduct(req, res) {
     // ✅ validate category
     const [cat] = await db.query(
       `SELECT id FROM category_master WHERE id = ?`,
-      [category_master_id],
+      [category_master_id]
     );
 
     if (!cat.length) {
@@ -94,7 +98,7 @@ async function sellerProduct(req, res) {
         long_description,
         description,
         formattedDate,
-      ],
+      ]
     );
 
     res.status(201).json({
@@ -104,11 +108,11 @@ async function sellerProduct(req, res) {
     });
   } catch (err) {
     console.error("SELLER PRODUCT ERROR:", err);
-    res
-      .status(500)
-      .json({ message: "Same SKU already exists. Please use a different SKU" });
+    res.status(500).json({ message: "Same SKU already exists. Please use a different SKU" });
   }
 }
+
+
 
 async function sellerImage(req, res) {
   try {
@@ -135,13 +139,11 @@ async function sellerImage(req, res) {
       `SELECT product_id FROM product 
        WHERE seller_id = ?
        ORDER BY product_id DESC LIMIT 1`,
-      [seller_id],
+      [seller_id]
     );
 
     if (!productRow.length) {
-      return res
-        .status(404)
-        .json({ message: "No product found to attach images" });
+      return res.status(404).json({ message: "No product found to attach images" });
     }
 
     const product_id = productRow[0].product_id;
@@ -151,7 +153,7 @@ async function sellerImage(req, res) {
       await db.query(
         `INSERT INTO product_url (product_id, seller_id, url)
          VALUES (?, ?, ?)`,
-        [product_id, seller_id, JSON.stringify([url])],
+        [product_id, seller_id, JSON.stringify([url])]
       );
     }
 
@@ -159,13 +161,15 @@ async function sellerImage(req, res) {
       success: true,
       message: "Images uploaded successfully",
       product_id,
-      urls,
+      urls
     });
+
   } catch (error) {
     console.error("IMAGE UPLOAD ERROR:", error);
     res.status(500).json({ message: "Image upload failed" });
   }
 }
+
 
 async function getAllProduct(req, res) {
   try {
@@ -176,8 +180,7 @@ async function getAllProduct(req, res) {
     const sellerId = req.seller?.id;
 
     let rowsQuery = "SELECT * FROM ecommerce_mojija_product.product";
-    let countQuery =
-      "SELECT COUNT(*) as total FROM ecommerce_mojija_product.product";
+    let countQuery = "SELECT COUNT(*) as total FROM ecommerce_mojija_product.product";
     const params = [];
     const countParams = [];
 
@@ -219,7 +222,8 @@ async function getImageUrl(req, res) {
   try {
     // const db = await connectProductDb();
     const sellerId = req.seller?.id;
-    if (!sellerId) return res.status(401).json({ message: "Unauthorized" });
+    if (!sellerId)
+      return res.status(401).json({ message: "Unauthorized" });
 
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -227,7 +231,7 @@ async function getImageUrl(req, res) {
 
     const [results] = await db.query(
       "CALL GetProductDetailsWithImagesBySeller(?)",
-      [sellerId],
+      [sellerId]
     );
     const productList = results[0] || [];
 
@@ -248,7 +252,10 @@ async function getImageUrl(req, res) {
 
     const total = processedProducts.length;
     const totalPages = Math.ceil(total / limit);
-    const paginated = processedProducts.slice(offset, offset + limit);
+    const paginated = processedProducts.slice(
+      offset,
+      offset + limit
+    );
 
     res.status(200).json({
       currentPage: page,
@@ -259,7 +266,9 @@ async function getImageUrl(req, res) {
     });
   } catch (error) {
     console.error("getImageUrl error:", error);
-    res.status(500).json({ message: "getImgUrl Internal server error" });
+    res
+      .status(500)
+      .json({ message: "getImgUrl Internal server error" });
   }
 }
 
@@ -271,7 +280,7 @@ async function deleteProduct(req, res) {
 
     const [product] = await db.query(
       "SELECT * FROM product WHERE product_id = ? AND seller_id = ?",
-      [product_id, seller_id],
+      [product_id, seller_id]
     );
 
     if (product.length === 0) {
@@ -285,12 +294,12 @@ async function deleteProduct(req, res) {
     ]);
     await db.query(
       "DELETE FROM product WHERE product_id = ? AND seller_id = ?",
-      [product_id, seller_id],
+      [product_id, seller_id]
     );
 
     res.status(200).json({
       message: "Product deleted successfully",
-      product_id,
+      product_id,  
     });
   } catch (error) {
     console.error("Error deleting product:", error);
@@ -309,7 +318,7 @@ async function updateProduct(req, res) {
 
     const [rows] = await db.query(
       "SELECT * FROM product WHERE product_id = ? AND seller_id = ?",
-      [product_id, seller_id],
+      [product_id, seller_id]
     );
 
     if (!rows.length) {
@@ -327,8 +336,7 @@ async function updateProduct(req, res) {
       product_unit: req.body.product_unit ?? existing.product_unit,
       total_stock: req.body.total_stock ?? existing.total_stock,
       remaining_stock: req.body.remaining_stock ?? existing.remaining_stock,
-      short_description:
-        req.body.short_description ?? existing.short_description,
+      short_description: req.body.short_description ?? existing.short_description,
       long_description: req.body.long_description ?? existing.long_description,
       description: req.body.description ?? existing.description,
       location_city: req.body.location_city ?? existing.location_city,
@@ -361,7 +369,7 @@ async function updateProduct(req, res) {
         payload.brand,
         payload.product_price,
         payload.product_unit,
-        payload.total_stock, // stock sync
+        payload.total_stock,   // stock sync
         payload.total_stock,
         payload.remaining_stock,
         payload.short_description,
@@ -372,18 +380,20 @@ async function updateProduct(req, res) {
         payload.location_country,
         payload.gst_verified,
         product_id,
-        seller_id,
-      ],
+        seller_id
+      ]
     );
 
     res.json({ message: "Product updated successfully" });
+
   } catch (err) {
     console.error("Update error:", err);
-    res
-      .status(500)
-      .json({ message: "Same SKU already exists. Please use a different SKU" });
+    res.status(500).json({ message: "Same SKU already exists. Please use a different SKU" });
   }
 }
+
+
+
 
 async function getSellerInventory(req, res) {
   try {
@@ -408,11 +418,11 @@ async function getSellerInventory(req, res) {
         p.product_id, p.product_name, p.brand, 
         p.product_price, p.remaining_stock, p.min_stock
       `,
-      [sellerId],
+      [sellerId]
     );
 
     // 🔥 SAFE IMAGE PARSER
-    const formatted = rows.map((item) => {
+    const formatted = rows.map(item => {
       let images = [];
 
       try {
@@ -430,11 +440,13 @@ async function getSellerInventory(req, res) {
     });
 
     res.status(200).json({ success: true, inventory: formatted });
+
   } catch (error) {
     console.error("GET INVENTORY ERROR:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
 
 async function updateSellerStock(req, res) {
   try {
@@ -458,7 +470,7 @@ async function updateSellerStock(req, res) {
       SET remaining_stock = ?
       WHERE product_id = ? AND seller_id = ?
       `,
-      [stock, id, sellerId],
+      [stock, id, sellerId]
     );
 
     // 🟢 Fetch updated record to return clean updated data
@@ -472,13 +484,14 @@ async function updateSellerStock(req, res) {
       FROM ecommerce_mojija_product.product
       WHERE product_id = ? AND seller_id = ?
       `,
-      [id, sellerId],
+      [id, sellerId]
     );
 
     res.status(200).json({
       message: "Stock updated successfully",
-      updatedProduct: updated[0],
+      updatedProduct: updated[0]
     });
+
   } catch (error) {
     console.error("UPDATE STOCK ERROR:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -498,23 +511,26 @@ async function getSellerWallet(req, res) {
       ORDER BY id DESC 
       LIMIT 1
       `,
-      [sellerId],
+      [sellerId]
     );
 
     if (!rows.length) {
       return res.json({
         total_earnings: 0,
         withdrawable_balance: 0,
-        pending_payouts: 0,
+        pending_payouts: 0
       });
     }
 
     res.json(rows[0]);
+
   } catch (err) {
     console.error("WALLET ERROR:", err);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
+
 
 async function getSellerTransactions(req, res) {
   try {
@@ -529,10 +545,11 @@ async function getSellerTransactions(req, res) {
       WHERE seller_id = ?
       ORDER BY created_at DESC
       `,
-      [sellerId],
+      [sellerId]
     );
 
     res.json({ transactions: rows });
+
   } catch (err) {
     console.error("TRANSACTION ERROR:", err);
     res.status(500).json({ message: "Internal Server Error" });
@@ -552,7 +569,7 @@ async function requestWithdraw(req, res) {
     // 1️⃣ GET WALLET BALANCE
     const [row] = await db.query(
       "SELECT withdrawable_balance FROM seller_wallet WHERE seller_id = ?",
-      [sellerId],
+      [sellerId]
     );
 
     if (!row.length) {
@@ -575,7 +592,7 @@ async function requestWithdraw(req, res) {
       (seller_id, txn_id, amount, type, status, description)
       VALUES (?, ?, ?, 'DEBIT', 'pending', ?)
       `,
-      [sellerId, txnId, amount, `Withdraw request via ${method}`],
+      [sellerId, txnId, amount, `Withdraw request via ${method}`]
     );
 
     // 4️⃣ DEDUCT BALANCE TEMPORARILY
@@ -585,7 +602,7 @@ async function requestWithdraw(req, res) {
       SET withdrawable_balance = withdrawable_balance - ?
       WHERE seller_id = ?
       `,
-      [amount, sellerId],
+      [amount, sellerId]
     );
 
     // 5️⃣ INSERT INTO withdrawal_requests TABLE
@@ -595,95 +612,24 @@ async function requestWithdraw(req, res) {
       (seller_id, txn_id, amount, method, details, status)
       VALUES (?, ?, ?, ?, ?, 'pending')
       `,
-      [sellerId, txnId, amount, method, JSON.stringify(details)],
+      [sellerId, txnId, amount, method, JSON.stringify(details)]
     );
 
     res.json({
       success: true,
       message: "Withdrawal request submitted successfully",
-      txn_id: txnId,
+      txn_id: txnId
     });
+
   } catch (err) {
     console.error("WITHDRAW REQUEST ERROR:", err);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
 
-// export const getSellerOrders = async (req, res) => {
-//   try {
-//     if (!req.seller?.id) {
-//       return res.status(401).json({ message: "Unauthorized" });
-//     }
 
-//     const sellerId = req.seller.id;
 
-//     const [rows] = await cartDb.query(
-//       `
-//   SELECT
-//     bo.order_id AS order_id,
-//     bo.order_status AS status,
-//     bo.fulfillment_type,
-//     bo.created_at,
 
-//     ba.full_name AS buyer_name,
-//     ba.phone AS buyer_phone,
-//     ba.address_line,
-//     ba.city,
-//     ba.state,
-//     ba.pincode,
-
-//     p.product_name,
-//     oi.quantity,
-//     oi.subtotal AS amount
-
-//   FROM ecommerce_mojija_cart.order_items oi
-//   JOIN ecommerce_mojija_cart.buyer_orders bo
-//     ON oi.order_id = bo.order_id
-//   JOIN ecommerce_mojija_product.product p
-//     ON oi.product_id = p.product_id
-//   LEFT JOIN ecommerce_mojija_cart.buyer_addresses ba
-//     ON bo.address_id = ba.address_id
-
-//   WHERE oi.owner_type = 'seller'
-//     AND p.seller_id = ?
-
-//   ORDER BY bo.created_at DESC
-//   `,
-//       [sellerId],
-//     );
-
-//     const orders = rows.map((o) => ({
-//       order_id: o.order_id,
-//       status: o.status,
-//       fulfillment_type: o.fulfillment_type,
-//       payment_mode: "COD",
-
-//       product_name: o.product_name,
-//       quantity: o.quantity,
-//       amount: o.amount,
-
-//       buyer_name: o.buyer_name,
-//       buyer_phone: o.buyer_phone,
-
-//       // ✅ created_at ko ISO string mein convert karo
-//       created_at: o.created_at ? new Date(o.created_at).toISOString() : null,
-
-//       address:
-//         o.fulfillment_type === "pickup"
-//           ? "Pickup Order"
-//           : {
-//               address_line: o.address_line,
-//               city: o.city,
-//               state: o.state,
-//               pincode: o.pincode,
-//             },
-//     }));
-//     return res.json({ success: true, orders });
-//   } catch (err) {
-//     console.error("GET SELLER ORDERS ERROR:", err);
-//     return res.status(500).json({ message: "Internal Server Error" });
-//   }
-// };
 
 export const getSellerOrders = async (req, res) => {
   try {
@@ -725,10 +671,10 @@ export const getSellerOrders = async (req, res) => {
 
   ORDER BY bo.created_at DESC
   `,
-      [sellerId],
+      [sellerId]
     );
 
-    const orders = rows.map((o) => ({
+    const orders = rows.map(o => ({
       order_id: o.order_id,
       status: o.status,
       fulfillment_type: o.fulfillment_type,
@@ -746,19 +692,26 @@ export const getSellerOrders = async (req, res) => {
         o.fulfillment_type === "pickup"
           ? "Pickup Order"
           : {
-              address_line: o.address_line,
-              city: o.city,
-              state: o.state,
-              pincode: o.pincode,
-            },
+            address_line: o.address_line,
+            city: o.city,
+            state: o.state,
+            pincode: o.pincode,
+          }
     }));
 
     return res.json({ success: true, orders });
+
   } catch (err) {
     console.error("GET SELLER ORDERS ERROR:", err);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+
+
+
+
+
 /* ================================
    UPDATE ORDER STATUS (SELLER)
 ================================ */
@@ -797,7 +750,7 @@ export const updateOrderStatus = async (req, res) => {
         AND oi.owner_type = 'seller'
         AND p.seller_id = ?
       `,
-      [orderId, sellerId],
+      [orderId, sellerId]
     );
 
     if (!ownership.length) {
@@ -813,7 +766,7 @@ export const updateOrderStatus = async (req, res) => {
       SET order_status = ?
       WHERE order_id = ?
       `,
-      [status, orderId],
+      [status, orderId]
     );
 
     /* 🔄 FETCH UPDATED ORDER (OPTIONAL BUT BEST) */
@@ -823,7 +776,7 @@ export const updateOrderStatus = async (req, res) => {
       FROM ecommerce_mojija_cart.buyer_orders
       WHERE order_id = ?
       `,
-      [orderId],
+      [orderId]
     );
 
     return res.json({
@@ -831,59 +784,13 @@ export const updateOrderStatus = async (req, res) => {
       message: "Order status updated successfully",
       order: updated,
     });
+
   } catch (err) {
     console.error("UPDATE ORDER STATUS ERROR:", err);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
-// async function getSellerProducts(req, res) {
-//   try {
-//     const sellerId = req.seller.id;
-
-//     const [rows] = await db.query(
-//       `
-//       SELECT
-//         p.product_id,
-//         p.product_name,
-//         p.product_price,
-//         p.product_unit,
-//         p.total_stock,
-//         p.remaining_stock,
-//         p.short_description,
-//         p.long_description,
-//         p.created_at,
-//         cm.category_name,
-
-//         JSON_ARRAYAGG(JSON_EXTRACT(pu.url, '$[0]')) AS image_urls
-
-//       FROM product p
-//       LEFT JOIN product_url pu ON p.product_id = pu.product_id
-//       LEFT JOIN category_master cm ON cm.id = p.category_master_id
-
-//       WHERE p.seller_id = ?
-//       GROUP BY p.product_id
-//       ORDER BY p.created_at DESC
-//       `,
-//       [sellerId]
-//     );
-
-//         // ✅ created_at ko ISO string mein convert karo
-//     const products = rows.map(p => ({
-//       ...p,
-//       created_at: p.created_at ? new Date(p.created_at).toISOString() : null
-//     }));
-
-//     res.json({
-//       success: true,
-//       products: rows,
-//     });
-
-//   } catch (error) {
-//     console.error("GET SELLER PRODUCTS ERROR:", error);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// }
 async function getSellerProducts(req, res) {
   try {
     const sellerId = req.seller.id;
@@ -911,7 +818,7 @@ async function getSellerProducts(req, res) {
       GROUP BY p.product_id
       ORDER BY p.created_at DESC
       `,
-      [sellerId],
+      [sellerId]
     );
 
     // ✅ Ab koi conversion nahi — directly bhejo
@@ -919,11 +826,14 @@ async function getSellerProducts(req, res) {
       success: true,
       products: rows,
     });
+
   } catch (error) {
     console.error("GET SELLER PRODUCTS ERROR:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+
 
 async function sellerCreateCustomCategory(req, res) {
   try {
@@ -940,7 +850,7 @@ async function sellerCreateCustomCategory(req, res) {
     // 🔍 Validate parent
     const [[parent]] = await db.query(
       `SELECT id, level FROM category_master WHERE id = ?`,
-      [parent_id],
+      [parent_id]
     );
 
     if (!parent) {
@@ -960,7 +870,7 @@ async function sellerCreateCustomCategory(req, res) {
       WHERE LOWER(category_name) = LOWER(?)
         AND parent_id = ?
       `,
-      [category_name, parent_id],
+      [category_name, parent_id]
     );
 
     if (exists) {
@@ -984,7 +894,7 @@ async function sellerCreateCustomCategory(req, res) {
       )
       VALUES (?, ?, ?, 1, NOW())
       `,
-      [category_name, parent_id, level],
+      [category_name, parent_id, level]
     );
 
     res.status(201).json({
@@ -1003,6 +913,8 @@ async function sellerCreateCustomCategory(req, res) {
   }
 }
 
+
+
 async function updateProductImages(req, res) {
   try {
     const { id: seller_id } = req.seller;
@@ -1016,37 +928,34 @@ async function updateProductImages(req, res) {
     // 🔐 ownership check
     const [[product]] = await db.query(
       "SELECT product_id FROM product WHERE product_id = ? AND seller_id = ?",
-      [product_id, seller_id],
+      [product_id, seller_id]
     );
 
     if (!product) {
-      return res
-        .status(404)
-        .json({ message: "Product not found or unauthorized" });
+      return res.status(404).json({ message: "Product not found or unauthorized" });
     }
 
     // 🧹 DELETE OLD IMAGES (RECOMMENDED)
-    await db.query("DELETE FROM product_url WHERE product_id = ?", [
-      product_id,
-    ]);
+    await db.query("DELETE FROM product_url WHERE product_id = ?", [product_id]);
 
     // ⬆️ upload new images
-    const uploaded = await Promise.all(files.map((f) => uploadImage(f)));
-    const valid = uploaded.filter((i) => i.success);
+    const uploaded = await Promise.all(files.map(f => uploadImage(f)));
+    const valid = uploaded.filter(i => i.success);
 
     for (let img of valid) {
       await db.query(
         `INSERT INTO product_url (product_id, seller_id, url)
          VALUES (?, ?, ?)`,
-        [product_id, seller_id, JSON.stringify([img.optimized_url])],
+        [product_id, seller_id, JSON.stringify([img.optimized_url])]
       );
     }
 
     res.json({
       success: true,
       message: "Product images updated successfully",
-      uploaded: valid.length,
+      uploaded: valid.length
     });
+
   } catch (err) {
     console.error("UPDATE PRODUCT IMAGES ERROR:", err);
     res.status(500).json({ message: "Image update failed" });
@@ -1068,12 +977,13 @@ export const getSellerDashboardStats = async (req, res) => {
        WHERE p.seller_id = ?
          AND oi.owner_type = 'seller'
          AND bo.order_status IN ('confirmed','shipped','delivered')`,
-      [sellerId],
+      [sellerId]
     );
 
     return res.json({
-      totalRevenue: revenue.totalRevenue,
+      totalRevenue: revenue.totalRevenue
     });
+
   } catch (err) {
     console.error("Seller Revenue Error:", err);
     return res.status(500).json({ message: "Revenue calculation failed" });
@@ -1083,8 +993,7 @@ export const getSellerOrderGraph = async (req, res) => {
   try {
     const sellerId = req.seller.id;
 
-    const [rows] = await cartDb.query(
-      `
+    const [rows] = await cartDb.query(`
       SELECT
           DATE(bo.created_at) AS order_date,
           COUNT(oi.order_item_id) AS total_orders
@@ -1096,9 +1005,7 @@ export const getSellerOrderGraph = async (req, res) => {
         AND bo.created_at >= CURDATE() - INTERVAL 6 DAY
       GROUP BY DATE(bo.created_at)
       ORDER BY order_date ASC
-    `,
-      [sellerId],
-    );
+    `, [sellerId]);
 
     // 🧠 Last 7 days (including zero orders)
     const result = [];
@@ -1108,25 +1015,30 @@ export const getSellerOrderGraph = async (req, res) => {
 
       const key = d.toISOString().split("T")[0];
 
-      const found = rows.find(
-        (r) => r.order_date && r.order_date.toISOString().split("T")[0] === key,
+      const found = rows.find(r =>
+        r.order_date &&
+        r.order_date.toISOString().split("T")[0] === key
       );
 
       result.push({
         day: d.toLocaleDateString("en-IN", {
           day: "2-digit",
-          month: "short",
+          month: "short"
         }),
-        orders: found ? Number(found.total_orders) : 0,
+        orders: found ? Number(found.total_orders) : 0
       });
     }
 
     return res.json({ graph: result });
+
   } catch (err) {
     console.error("SELLER ORDER GRAPH ERROR:", err);
     return res.status(500).json({ message: "Failed to fetch order graph" });
   }
 };
+
+
+
 
 export {
   sellerProduct,
@@ -1152,4 +1064,5 @@ export {
   sellerCreateCustomCategory,
   // createWithdrawRequest,
   updateProductImages,
+
 };
