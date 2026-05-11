@@ -22,11 +22,17 @@
 // module.exports = redis;
 const { createClient } = require("redis");
 
+const redisUrl = `rediss://default:${process.env.REDIS_PASSWORD}@${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`;
+
 const redis = createClient({
-  url: process.env.REDIS_URL,
+  url: redisUrl,
   socket: {
     connectTimeout: 15000, // 15 sec
     keepAlive: 5000,
+    reconnectStrategy: (retries) => {
+      if (retries > 10) return new Error("Redis Max Retries Reached");
+      return 1000; // retry every 1 second
+    },
   },
 });
 

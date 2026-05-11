@@ -631,6 +631,83 @@ async function requestWithdraw(req, res) {
 
 
 
+// export const getSellerOrders = async (req, res) => {
+//   try {
+//     if (!req.seller?.id) {
+//       return res.status(401).json({ message: "Unauthorized" });
+//     }
+
+//     const sellerId = req.seller.id;
+
+//     const [rows] = await cartDb.query(
+//       `
+//   SELECT
+//     bo.order_id AS order_id,
+//     bo.order_status AS status,
+//     bo.fulfillment_type,
+//     DATE_FORMAT(CONVERT_TZ(bo.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS created_at,
+
+//     ba.full_name AS buyer_name,
+//     ba.phone AS buyer_phone,
+//     ba.address_line,
+//     ba.city,
+//     ba.state,
+//     ba.pincode,
+
+//     p.product_name,
+//     oi.quantity,
+//     oi.subtotal AS amount
+
+//   FROM ecommerce_mojija_cart.order_items oi
+//   JOIN ecommerce_mojija_cart.buyer_orders bo
+//     ON oi.order_id = bo.order_id
+//   JOIN ecommerce_mojija_product.product p
+//     ON oi.product_id = p.product_id
+//   LEFT JOIN ecommerce_mojija_cart.buyer_addresses ba
+//     ON bo.address_id = ba.address_id
+
+//   WHERE oi.owner_type = 'seller'
+//     AND p.seller_id = ?
+
+//   ORDER BY bo.created_at DESC
+//   `,
+//       [sellerId]
+//     );
+
+//     const orders = rows.map(o => ({
+//       order_id: o.order_id,
+//       status: o.status,
+//       fulfillment_type: o.fulfillment_type,
+//       payment_mode: "COD",
+//       product_name: o.product_name,
+//       quantity: o.quantity,
+//       amount: o.amount,
+//       buyer_name: o.buyer_name,
+//       buyer_phone: o.buyer_phone,
+
+//       // ✅ Ab directly string bhejo — already IST hai
+//       created_at: o.created_at,
+
+//       address:
+//         o.fulfillment_type === "pickup"
+//           ? "Pickup Order"
+//           : {
+//             address_line: o.address_line,
+//             city: o.city,
+//             state: o.state,
+//             pincode: o.pincode,
+//           }
+//     }));
+
+//     return res.json({ success: true, orders });
+
+//   } catch (err) {
+//     console.error("GET SELLER ORDERS ERROR:", err);
+//     return res.status(500).json({ message: "Internal Server Error" });
+//   }
+// };
+
+
 export const getSellerOrders = async (req, res) => {
   try {
     if (!req.seller?.id) {
@@ -656,7 +733,9 @@ export const getSellerOrders = async (req, res) => {
 
     p.product_name,
     oi.quantity,
-    oi.subtotal AS amount
+    oi.subtotal AS base_amount,
+    IFNULL(oi.gst_amount, 0) AS gst_amount,
+    (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS amount
 
   FROM ecommerce_mojija_cart.order_items oi
   JOIN ecommerce_mojija_cart.buyer_orders bo
@@ -681,13 +760,12 @@ export const getSellerOrders = async (req, res) => {
       payment_mode: "COD",
       product_name: o.product_name,
       quantity: o.quantity,
-      amount: o.amount,
+      base_amount: o.base_amount,   // ✅ subtotal without GST
+      gst_amount: o.gst_amount,     // ✅ GST amount
+      amount: o.amount,             // ✅ total with GST included
       buyer_name: o.buyer_name,
       buyer_phone: o.buyer_phone,
-
-      // ✅ Ab directly string bhejo — already IST hai
       created_at: o.created_at,
-
       address:
         o.fulfillment_type === "pickup"
           ? "Pickup Order"
@@ -706,9 +784,6 @@ export const getSellerOrders = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
-
-
 
 
 
