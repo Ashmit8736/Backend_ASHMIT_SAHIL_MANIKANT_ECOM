@@ -3,7 +3,7 @@ const app = require('./src/app')
 const db = require('./src/db/db')
 
 
-const port = process.env.PORT;
+port = process.env.PORT || 3001;
 // db()
 
 const IP = require("ip").address();
