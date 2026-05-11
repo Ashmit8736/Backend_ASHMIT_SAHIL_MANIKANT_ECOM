@@ -1,5 +1,5 @@
-import jwt from "jsonwebtoken";
-import authDb from "../db/authDb.js";
+const jwt = require("jsonwebtoken");
+const { authDB } = require("../db/db");
 
 const verifySellerProduct = async (req, res, next) => {
   try {
@@ -21,7 +21,7 @@ const verifySellerProduct = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const [rows] = await authDb.query(
+    const [rows] = await authDB.query(
       "SELECT id, email, fullname FROM seller WHERE id = ?",
       [decoded.id]
     );
@@ -48,5 +48,4 @@ const verifySellerProduct = async (req, res, next) => {
 };
 
 
-export default verifySellerProduct;
-
+module.exports = verifySellerProduct;
