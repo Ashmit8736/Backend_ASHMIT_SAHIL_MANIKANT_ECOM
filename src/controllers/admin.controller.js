@@ -512,21 +512,286 @@ export async function getAllUsers(req, res) {
 // UPDATE ORDER STATUS
 // ===============================
 
+// export async function adminGetAllOrders(req, res) {
+//   try {
+//     const page  = parseInt(req.query.page)  || 1;
+//     const limit = parseInt(req.query.limit) || 10;
+//     const offset = (page - 1) * limit;
+
+//     // ✅ Total count ke liye alag query
+//     const [[{ total }]] = await cartDB.query(`
+//       SELECT COUNT(*) as total
+//       FROM ecommerce_mojija_cart.order_items oi
+//       JOIN ecommerce_mojija_cart.buyer_orders bo
+//         ON bo.order_id = oi.order_id
+//     `);
+
+//     // ✅ Main query — sirf LIMIT OFFSET add kiya, baaki sab same
+//     const [rows] = await cartDB.query(`
+//       SELECT
+//         bo.order_id,
+//         bo.order_status,
+//         bo.payment_mode,
+//         bo.fulfillment_type,
+//         bo.created_at,
+
+//         oi.order_item_id,
+//         oi.owner_type,
+//         oi.quantity,
+//         oi.subtotal AS amount,
+
+//         COALESCE(ba.full_name, u.username) AS buyer_name,
+//         COALESCE(ba.phone, u.phone) AS buyer_phone,
+
+//         s.fullname AS seller_name,
+//         sup.company_name AS supplier_name,
+//         COALESCE(p.product_name, sp.product_name) AS product_name
+
+//       FROM ecommerce_mojija_cart.order_items oi
+
+//       JOIN ecommerce_mojija_cart.buyer_orders bo
+//         ON bo.order_id = oi.order_id
+
+//       LEFT JOIN ecommerce_mojija_cart.buyer_addresses ba
+//         ON ba.address_id = bo.address_id
+
+//       LEFT JOIN \`ecommerce_mojija_auth\`.user u
+//         ON u.id = bo.buyer_id
+
+//       LEFT JOIN ecommerce_mojija_product.product p
+//         ON p.product_id = oi.product_id
+//         AND oi.owner_type = 'seller'
+
+//       LEFT JOIN \`ecommerce_mojija_auth\`.seller s
+//         ON s.id = p.seller_id
+
+//       LEFT JOIN ecommerce_mojija_product.supplier_product sp
+//         ON sp.product_id = oi.product_id
+//         AND oi.owner_type = 'supplier'
+
+//       LEFT JOIN \`ecommerce_mojija_auth\`.supplier sup
+//         ON sup.id = sp.supplier_id
+
+//       ORDER BY bo.created_at DESC
+//       LIMIT ? OFFSET ?
+//     `, [limit, offset]);  // ✅ yahan parameters pass kiye
+
+//     const orders = rows.map(o => ({
+//       order_id:        o.order_id,
+//       order_type:      o.owner_type,
+//       party_name:      o.owner_type === "seller" ? o.seller_name : o.supplier_name,
+//       buyer_name:      o.buyer_name || "N/A",
+//       buyer_phone:     o.buyer_phone || "N/A",
+//       product_name:    o.product_name,
+//       quantity:        o.quantity,
+//       amount:          o.amount,
+//       status:          o.order_status,
+//       payment_mode:    o.payment_mode,
+//       fulfillment_type: o.fulfillment_type,
+//       order_date:      o.created_at,
+//     }));
+
+//     res.json({
+//       success: true,
+//       orders,
+//       pagination: {
+//         total,                              // DB mein total orders
+//         page,                               // current page
+//         limit,                              // per page
+//         totalPages: Math.ceil(total / limit),
+//       },
+//     });
+
+//   } catch (err) {
+//     console.error("ADMIN GET ALL ORDERS ERROR:", err);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// }
+
+// export async function adminGetAllOrders(req, res) {
+//   try {
+//     const page   = parseInt(req.query.page)   || 1;
+//     const limit  = parseInt(req.query.limit)  || 10;
+//     const offset = (page - 1) * limit;
+//     const { status, search } = req.query;
+
+//     // ✅ Dynamic WHERE clause
+//     let where = "";
+//     let params = [];
+
+//     if (status) {
+//       where += " AND bo.order_status = ?";
+//       params.push(status);
+//     }
+
+//     if (search) {
+//       where += ` AND (
+//         COALESCE(ba.full_name, u.username) LIKE ? OR
+//         COALESCE(p.product_name, sp.product_name) LIKE ? OR
+//         CAST(bo.order_id AS CHAR) LIKE ?
+//       )`;
+//       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+//     }
+
+//     // COUNT query
+//     const [[{ total }]] = await cartDB.query(`
+//       SELECT COUNT(*) as total
+//       FROM ecommerce_mojija_cart.order_items oi
+//       JOIN ecommerce_mojija_cart.buyer_orders bo ON bo.order_id = oi.order_id
+//       LEFT JOIN ecommerce_mojija_cart.buyer_addresses ba ON ba.address_id = bo.address_id
+//       LEFT JOIN \`ecommerce_mojija_auth\`.user u ON u.id = bo.buyer_id
+//       LEFT JOIN ecommerce_mojija_product.product p 
+//         ON p.product_id = oi.product_id AND oi.owner_type = 'seller'
+//       LEFT JOIN ecommerce_mojija_product.supplier_product sp 
+//         ON sp.product_id = oi.product_id AND oi.owner_type = 'supplier'
+//       WHERE 1=1 ${where}
+//     `, params);
+
+//     // DATA query
+//     const [rows] = await cartDB.query(`
+//       SELECT
+//         bo.order_id,
+//         bo.order_status,
+//         bo.payment_mode,
+//         bo.fulfillment_type,
+//         bo.created_at,
+//         oi.order_item_id,
+//         oi.owner_type,
+//         oi.quantity,
+//         oi.subtotal AS base_amount,
+//         IFNULL(oi.gst_amount, 0) AS gst_amount,
+//         (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS amount,
+//         COALESCE(ba.full_name, u.username) AS buyer_name,
+//         COALESCE(ba.phone, u.phone) AS buyer_phone,
+//         s.fullname AS seller_name,
+//         sup.company_name AS supplier_name,
+//         COALESCE(p.product_name, sp.product_name) AS product_name
+
+//       FROM ecommerce_mojija_cart.order_items oi
+//       JOIN ecommerce_mojija_cart.buyer_orders bo ON bo.order_id = oi.order_id
+//       LEFT JOIN ecommerce_mojija_cart.buyer_addresses ba ON ba.address_id = bo.address_id
+//       LEFT JOIN \`ecommerce_mojija_auth\`.user u ON u.id = bo.buyer_id
+//       LEFT JOIN ecommerce_mojija_product.product p 
+//         ON p.product_id = oi.product_id AND oi.owner_type = 'seller'
+//       LEFT JOIN \`ecommerce_mojija_auth\`.seller s ON s.id = p.seller_id
+//       LEFT JOIN ecommerce_mojija_product.supplier_product sp 
+//         ON sp.product_id = oi.product_id AND oi.owner_type = 'supplier'
+//       LEFT JOIN \`ecommerce_mojija_auth\`.supplier sup ON sup.id = sp.supplier_id
+
+//       WHERE 1=1 ${where}
+//       ORDER BY bo.created_at DESC
+//       LIMIT ? OFFSET ?
+//     `, [...params, limit, offset]);
+
+//     const orders = rows.map(o => ({
+//       order_id:         o.order_id,
+//       order_type:       o.owner_type,
+//       party_name:       o.owner_type === "seller" ? o.seller_name : o.supplier_name,
+//       buyer_name:       o.buyer_name || "N/A",
+//       buyer_phone:      o.buyer_phone || "N/A",
+//       product_name:     o.product_name,
+//       quantity:         o.quantity,
+//       base_amount:      o.base_amount,
+//       gst_amount:       o.gst_amount,
+//       amount:           o.amount,
+//       status:           o.order_status,
+//       payment_mode:     o.payment_mode,
+//       fulfillment_type: o.fulfillment_type,
+//       order_date:       o.created_at,
+//     }));
+
+//     res.json({
+//       success: true,
+//       orders,
+//       pagination: {
+//         total,
+//         page,
+//         limit,
+//         totalPages: Math.ceil(total / limit),
+//       },
+//     });
+
+//   } catch (err) {
+//     console.error("ADMIN GET ALL ORDERS ERROR:", err);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// }
+
 export async function adminGetAllOrders(req, res) {
   try {
-    const page  = parseInt(req.query.page)  || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const page   = parseInt(req.query.page)  || 1;
+    const limit  = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
+    const { status, search } = req.query;
 
-    // ✅ Total count ke liye alag query
-    const [[{ total }]] = await cartDB.query(`
-      SELECT COUNT(*) as total
+    let where = "";
+    let params = [];
+
+    if (status) {
+      where += " AND bo.order_status = ?";
+      params.push(status);
+    }
+
+    if (search) {
+      where += ` AND (
+        COALESCE(ba.full_name, u.username) LIKE ? OR
+        COALESCE(p.product_name, sp.product_name) LIKE ? OR
+        CAST(bo.order_id AS CHAR) LIKE ?
+      )`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    const baseJoin = `
       FROM ecommerce_mojija_cart.order_items oi
-      JOIN ecommerce_mojija_cart.buyer_orders bo
-        ON bo.order_id = oi.order_id
-    `);
+      JOIN ecommerce_mojija_cart.buyer_orders bo ON bo.order_id = oi.order_id
+      LEFT JOIN ecommerce_mojija_cart.buyer_addresses ba ON ba.address_id = bo.address_id
+      LEFT JOIN \`ecommerce_mojija_auth\`.user u ON u.id = bo.buyer_id
+      LEFT JOIN ecommerce_mojija_product.product p 
+        ON p.product_id = oi.product_id AND oi.owner_type = 'seller'
+      LEFT JOIN ecommerce_mojija_product.supplier_product sp 
+        ON sp.product_id = oi.product_id AND oi.owner_type = 'supplier'
+    `;
 
-    // ✅ Main query — sirf LIMIT OFFSET add kiya, baaki sab same
+    // ✅ Total filtered count
+    const [[{ total }]] = await cartDB.query(
+      `SELECT COUNT(*) as total ${baseJoin} WHERE 1=1 ${where}`,
+      params
+    );
+
+    // ✅ Status wise counts — search apply hoga, status filter nahi
+    const statusJoin = baseJoin;
+    let searchWhere = "";
+    let searchParams = [];
+
+    if (search) {
+      searchWhere += ` AND (
+        COALESCE(ba.full_name, u.username) LIKE ? OR
+        COALESCE(p.product_name, sp.product_name) LIKE ? OR
+        CAST(bo.order_id AS CHAR) LIKE ?
+      )`;
+      searchParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    const [statusCounts] = await cartDB.query(
+      `SELECT bo.order_status, COUNT(*) as count 
+       ${statusJoin}
+       WHERE 1=1 ${searchWhere}
+       GROUP BY bo.order_status`,
+      searchParams
+    );
+
+    // ✅ Format status counts
+    const counts = { placed: 0, confirmed: 0, shipped: 0, delivered: 0, cancelled: 0 };
+    let totalAll = 0;
+    statusCounts.forEach(row => {
+      if (counts.hasOwnProperty(row.order_status)) {
+        counts[row.order_status] = row.count;
+        totalAll += row.count;
+      }
+    });
+    counts.All = totalAll;
+
+    // ✅ Data query
     const [rows] = await cartDB.query(`
       SELECT
         bo.order_id,
@@ -534,70 +799,50 @@ export async function adminGetAllOrders(req, res) {
         bo.payment_mode,
         bo.fulfillment_type,
         bo.created_at,
-
         oi.order_item_id,
         oi.owner_type,
         oi.quantity,
-        oi.subtotal AS amount,
-
+        oi.subtotal AS base_amount,
+        IFNULL(oi.gst_amount, 0) AS gst_amount,
+        (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS amount,
         COALESCE(ba.full_name, u.username) AS buyer_name,
         COALESCE(ba.phone, u.phone) AS buyer_phone,
-
         s.fullname AS seller_name,
         sup.company_name AS supplier_name,
         COALESCE(p.product_name, sp.product_name) AS product_name
-
-      FROM ecommerce_mojija_cart.order_items oi
-
-      JOIN ecommerce_mojija_cart.buyer_orders bo
-        ON bo.order_id = oi.order_id
-
-      LEFT JOIN ecommerce_mojija_cart.buyer_addresses ba
-        ON ba.address_id = bo.address_id
-
-      LEFT JOIN \`ecommerce_mojija_auth\`.user u
-        ON u.id = bo.buyer_id
-
-      LEFT JOIN ecommerce_mojija_product.product p
-        ON p.product_id = oi.product_id
-        AND oi.owner_type = 'seller'
-
-      LEFT JOIN \`ecommerce_mojija_auth\`.seller s
-        ON s.id = p.seller_id
-
-      LEFT JOIN ecommerce_mojija_product.supplier_product sp
-        ON sp.product_id = oi.product_id
-        AND oi.owner_type = 'supplier'
-
-      LEFT JOIN \`ecommerce_mojija_auth\`.supplier sup
-        ON sup.id = sp.supplier_id
-
+      ${baseJoin}
+      LEFT JOIN \`ecommerce_mojija_auth\`.seller s ON s.id = p.seller_id
+      LEFT JOIN \`ecommerce_mojija_auth\`.supplier sup ON sup.id = sp.supplier_id
+      WHERE 1=1 ${where}
       ORDER BY bo.created_at DESC
       LIMIT ? OFFSET ?
-    `, [limit, offset]);  // ✅ yahan parameters pass kiye
+    `, [...params, limit, offset]);
 
     const orders = rows.map(o => ({
-      order_id:        o.order_id,
-      order_type:      o.owner_type,
-      party_name:      o.owner_type === "seller" ? o.seller_name : o.supplier_name,
-      buyer_name:      o.buyer_name || "N/A",
-      buyer_phone:     o.buyer_phone || "N/A",
-      product_name:    o.product_name,
-      quantity:        o.quantity,
-      amount:          o.amount,
-      status:          o.order_status,
-      payment_mode:    o.payment_mode,
+      order_id:         o.order_id,
+      order_type:       o.owner_type,
+      party_name:       o.owner_type === "seller" ? o.seller_name : o.supplier_name,
+      buyer_name:       o.buyer_name || "N/A",
+      buyer_phone:      o.buyer_phone || "N/A",
+      product_name:     o.product_name,
+      quantity:         o.quantity,
+      base_amount:      o.base_amount,
+      gst_amount:       o.gst_amount,
+      amount:           o.amount,
+      status:           o.order_status,
+      payment_mode:     o.payment_mode,
       fulfillment_type: o.fulfillment_type,
-      order_date:      o.created_at,
+      order_date:       o.created_at,
     }));
 
     res.json({
       success: true,
       orders,
+      statusCounts: counts,  // ✅ frontend ke liye
       pagination: {
-        total,                              // DB mein total orders
-        page,                               // current page
-        limit,                              // per page
+        total,
+        page,
+        limit,
         totalPages: Math.ceil(total / limit),
       },
     });

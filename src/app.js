@@ -56,11 +56,15 @@ const recentProductRoutes = require("./routes/recentProductRoutes").default;
     cors({
       origin: [
         "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://192.168.1.48:5173",
-        "http://192.168.1.49:5173",
-        "http://192.168.1.51:5173",
-        "http://172.31.0.1:5173",
+        "https://digitalkharidi.com/"
+        // "http://localhost:4173", // 🔥 ADD THIS
+        // "http://localhost:3000",
+        // "http://localhost:5174",
+        // "http://127.0.0.1:5173",
+        // "http://192.168.1.48:5173",
+        // "http://192.168.1.49:5173",
+        // "http://192.168.1.51:5173",
+        // "http://172.31.0.1:5173",
       ],
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
