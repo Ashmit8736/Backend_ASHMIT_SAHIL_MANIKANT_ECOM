@@ -27,6 +27,7 @@ export async function supplierProduct(req, res) {
             wholesale_moq,
             product_unit,
             total_stock,
+            remaining_stock, 
             min_stock,
             city,
             state,
@@ -70,29 +71,33 @@ export async function supplierProduct(req, res) {
         /* ===============================
            🔥 CALL STORED PROCEDURE
         =============================== */
-        const [rows] = await db.query(
-            `CALL sp_create_supplier_product(
-    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+/* ===============================
+   🔥 CALL STORED PROCEDURE
+=============================== */
+const [rows] = await db.query(
+    `CALL sp_create_supplier_product(
+    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
   )`,
-            [
-                supplier_id,
-                product_name,
-                sku,
-                brand,
-                short_description,
-                long_description,
-                category_master_id,
-                wholesale_price,
-                wholesale_moq,
-                product_unit,
-                total_stock,
-                min_stock,
-                city,
-                state,
-                country,
-                gst_verified
-            ]
-        );
+    [
+        supplier_id,          // 1
+        product_name,         // 2
+        sku,                  // 3
+        brand,                // 4
+        short_description,    // 5
+        long_description,     // 6
+        category_master_id,   // 7
+        wholesale_price,      // 8
+        wholesale_moq,        // 9
+        product_unit,         // 10
+        total_stock,          // 11 ✅ total_stock
+        remaining_stock ?? total_stock,  // 12 ✅ remaining_stock
+        min_stock,            // 13
+        city,                 // 14
+        state,                // 15
+        country,              // 16
+        gst_verified          // 17
+    ]
+);
 
 
 
@@ -125,7 +130,7 @@ export async function supplierProductImage(req, res) {
         const product_id = req.params.id; // ✅ FIX
 
         if (!product_id) {
-            return res.status(400).json({ message: "product_id required" });
+            return res.status(400).json({ message: "product_id required" }); 
         }
 
         const [product] = await db.query(
@@ -227,7 +232,7 @@ export async function getSupplierProducts(req, res) {
 
 
 export async function deleteSupplierProduct(req, res) {
-    try {
+    try { 
         // const db = await connectProductDb();
         const supplier_id = req.supplier.id;
         const { id: product_id } = req.params;
@@ -408,24 +413,147 @@ export async function updateSupplierStock(req, res) {
 
 
 
+
+// export const getSupplierOrders = async (req, res) => {
+//   try {
+//     if (!req.supplier?.id) {
+//       return res.status(401).json({ message: "Unauthorized" });
+//     }
+
+//     const supplierId = req.supplier.id;
+
+//     const page   = parseInt(req.query.page) || 1;
+//     const limit  = parseInt(req.query.limit) || 10;
+//     const offset = (page - 1) * limit;
+
+//     const { search, status, sort } = req.query;
+
+//     let where = `WHERE oi.owner_type = 'supplier' AND sp.supplier_id = ?`;
+//     let params = [supplierId];
+
+//     /* ================= SEARCH ================= */
+//     if (search) {
+//       where += `
+//         AND (
+//           LOWER(ba.full_name) LIKE LOWER(?) OR
+//           ba.phone LIKE ? OR
+//           LOWER(ba2.full_name) LIKE LOWER(?) OR
+//           ba2.phone LIKE ?
+//         )
+//       `;
+//       params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+//     }
+
+//     /* ================= STATUS ================= */
+//     if (status) {
+//       where += ` AND bo.order_status = ?`;
+//       params.push(status);
+//     }
+
+//     /* ================= SORT ================= */
+//     let orderBy = `ORDER BY bo.created_at DESC`;
+//     if (sort === "Oldest First")   orderBy = `ORDER BY bo.created_at ASC`;
+//     if (sort === "Highest Value")  orderBy = `ORDER BY (oi.subtotal + IFNULL(oi.gst_amount, 0)) DESC`; // ✅ GST included sort
+//     if (sort === "Lowest Value")   orderBy = `ORDER BY (oi.subtotal + IFNULL(oi.gst_amount, 0)) ASC`;  // ✅ GST included sort
+
+//     /* ================= COUNT ================= */
+//     const [[{ total }]] = await cartDb.query(
+//       `
+//       SELECT COUNT(*) as total
+//       FROM order_items oi
+//       JOIN buyer_orders bo ON bo.order_id = oi.order_id
+//       JOIN ecommerce_mojija_product.supplier_product sp
+//         ON sp.product_id = oi.product_id
+//       LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
+//       LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+//       ${where}
+//       `,
+//       params
+//     );
+
+//     /* ================= DATA ================= */
+//     const [rows] = await cartDb.query(
+//       `
+//       SELECT
+//         oi.order_item_id,
+//         oi.order_id,
+//         oi.product_id,
+//         oi.quantity,
+//         oi.subtotal,
+//         IFNULL(oi.gst_amount, 0) AS gst_amount,
+//         (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS total_amount,
+
+//         bo.order_status,
+//         bo.created_at,
+//         bo.payment_mode,
+
+//         COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
+//         COALESCE(ba.phone, ba2.phone) AS buyer_phone,
+
+//         sp.product_name
+
+//       FROM order_items oi
+//       JOIN buyer_orders bo ON bo.order_id = oi.order_id
+//       JOIN ecommerce_mojija_product.supplier_product sp
+//         ON sp.product_id = oi.product_id
+//       LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
+//       LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+
+//       ${where}
+//       ${orderBy}
+//       LIMIT ? OFFSET ?
+//       `,
+//       [...params, limit, offset]
+//     );
+
+//     return res.json({
+//       success: true,
+//       data: rows.map((o) => ({
+//         orderItemId: o.order_item_id,
+//         orderId: o.order_id,
+//         date: o.created_at ? new Date(o.created_at).toISOString() : null,
+//         buyer: {
+//           name: o.buyer_name,
+//           phone: o.buyer_phone,
+//         },
+//         product: {
+//           id: o.product_id,
+//           name: o.product_name,
+//         },
+//         quantity: o.quantity,
+//         base_amount: o.subtotal,          // ✅ without GST
+//         gst_amount: o.gst_amount,         // ✅ GST amount
+//         amount: o.total_amount,           // ✅ GST included total
+//         paymentMode: o.payment_mode,
+//         status: o.order_status,
+//       })),
+//       pagination: {
+//         currentPage: page,
+//         totalPages: Math.ceil(total / limit),
+//         totalRecords: total,
+//         limit,
+//       },
+//     });
+
+//   } catch (err) {
+//     console.error("GET SUPPLIER ORDERS ERROR:", err);
+//     res.status(500).json({ message: "Failed to fetch supplier orders" });
+//   }
+// };
+
 export const getSupplierOrders = async (req, res) => {
   try {
     if (!req.supplier?.id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
     const supplierId = req.supplier.id;
-
     const page   = parseInt(req.query.page) || 1;
     const limit  = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
-
     const { search, status, sort } = req.query;
-
     let where = `WHERE oi.owner_type = 'supplier' AND sp.supplier_id = ?`;
     let params = [supplierId];
 
-    /* ================= SEARCH ================= */
     if (search) {
       where += `
         AND (
@@ -435,27 +563,18 @@ export const getSupplierOrders = async (req, res) => {
           ba2.phone LIKE ?
         )
       `;
-
-      params.push(
-        `%${search}%`,
-        `%${search}%`,
-        `%${search}%`,
-        `%${search}%`
-      );
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    /* ================= STATUS ================= */
     if (status) {
       where += ` AND bo.order_status = ?`;
       params.push(status);
     }
 
-    /* ================= SORT ================= */
     let orderBy = `ORDER BY bo.created_at DESC`;
-
-    if (sort === "Oldest First") orderBy = `ORDER BY bo.created_at ASC`;
-    if (sort === "Highest Value") orderBy = `ORDER BY oi.subtotal DESC`;
-    if (sort === "Lowest Value") orderBy = `ORDER BY oi.subtotal ASC`;
+    if (sort === "Oldest First")   orderBy = `ORDER BY bo.created_at ASC`;
+    if (sort === "Highest Value")  orderBy = `ORDER BY (oi.subtotal + IFNULL(oi.gst_amount, 0)) DESC`;
+    if (sort === "Lowest Value")   orderBy = `ORDER BY (oi.subtotal + IFNULL(oi.gst_amount, 0)) ASC`;
 
     /* ================= COUNT ================= */
     const [[{ total }]] = await cartDb.query(
@@ -466,7 +585,20 @@ export const getSupplierOrders = async (req, res) => {
       JOIN ecommerce_mojija_product.supplier_product sp
         ON sp.product_id = oi.product_id
       LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
-      LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+
+      -- ❌ HATAYA: LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+      -- Yeh buyer ki saari addresses match karta tha → duplicate rows aate the
+
+      -- ✅ ADD KIYA: Subquery se sirf ek (sabse pehli) address match karo
+      LEFT JOIN buyer_addresses ba2
+        ON ba2.buyer_id = bo.buyer_id
+        AND ba2.address_id = (
+          SELECT address_id FROM buyer_addresses
+          WHERE buyer_id = bo.buyer_id
+          ORDER BY address_id ASC
+          LIMIT 1
+        )
+
       ${where}
       `,
       params
@@ -481,22 +613,32 @@ export const getSupplierOrders = async (req, res) => {
         oi.product_id,
         oi.quantity,
         oi.subtotal,
-
+        IFNULL(oi.gst_amount, 0) AS gst_amount,
+        (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS total_amount,
         bo.order_status,
         bo.created_at,
         bo.payment_mode,
-
         COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
         COALESCE(ba.phone, ba2.phone) AS buyer_phone,
-
         sp.product_name
-
       FROM order_items oi
       JOIN buyer_orders bo ON bo.order_id = oi.order_id
       JOIN ecommerce_mojija_product.supplier_product sp
         ON sp.product_id = oi.product_id
       LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
-      LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+
+      -- ❌ HATAYA: LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
+      -- Yeh buyer ki saari addresses match karta tha → duplicate rows aate the
+
+      -- ✅ ADD KIYA: Subquery se sirf ek (sabse pehli) address match karo
+      LEFT JOIN buyer_addresses ba2
+        ON ba2.buyer_id = bo.buyer_id
+        AND ba2.address_id = (
+          SELECT address_id FROM buyer_addresses
+          WHERE buyer_id = bo.buyer_id
+          ORDER BY address_id ASC
+          LIMIT 1
+        )
 
       ${where}
       ${orderBy}
@@ -510,9 +652,7 @@ export const getSupplierOrders = async (req, res) => {
       data: rows.map((o) => ({
         orderItemId: o.order_item_id,
         orderId: o.order_id,
-        date: o.created_at
-          ? new Date(o.created_at).toISOString()
-          : null,
+        date: o.created_at ? new Date(o.created_at).toISOString() : null,
         buyer: {
           name: o.buyer_name,
           phone: o.buyer_phone,
@@ -522,7 +662,9 @@ export const getSupplierOrders = async (req, res) => {
           name: o.product_name,
         },
         quantity: o.quantity,
-        amount: o.subtotal,
+        base_amount: o.subtotal,
+        gst_amount: o.gst_amount,
+        amount: o.total_amount,
         paymentMode: o.payment_mode,
         status: o.order_status,
       })),
@@ -533,15 +675,11 @@ export const getSupplierOrders = async (req, res) => {
         limit,
       },
     });
-
   } catch (err) {
     console.error("GET SUPPLIER ORDERS ERROR:", err);
     res.status(500).json({ message: "Failed to fetch supplier orders" });
   }
 };
-
-
-
 
 const mapOrderStatus = (status) => {
     if (status === "placed") return "Pending";
