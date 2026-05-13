@@ -60,6 +60,9 @@ async function registerController(req, res) {
     const user = rows?.[0]?.[0];
     if (!user) throw new Error("User insert failed");
 
+    // 🔥 AUTO APPROVE BUYER
+    await conn.query("UPDATE user SET approval_status = 'approved' WHERE id = ?", [user.user_id]);
+
     await conn.commit();
 
     return res.status(201).json({

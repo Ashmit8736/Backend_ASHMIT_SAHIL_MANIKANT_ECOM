@@ -899,7 +899,7 @@ async function getSellerProducts(req, res) {
     // ✅ Ab koi conversion nahi — directly bhejo
     res.json({
       success: true,
-      products: rows,
+      products: products,
     });
 
   } catch (error) {
