@@ -895,16 +895,17 @@ async function getSellerProducts(req, res) {
       `,
       [sellerId]
     );
+    //console.log("RAW PRODUCTS:", rows);
 
     // ✅ Ab koi conversion nahi — directly bhejo
     res.json({
       success: true,
-      products: products,
+      products: rows,
     });
 
   } catch (error) {
     console.error("GET SELLER PRODUCTS ERROR:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(404).json({ message: "not able to fetch products" });
   }
 }
 

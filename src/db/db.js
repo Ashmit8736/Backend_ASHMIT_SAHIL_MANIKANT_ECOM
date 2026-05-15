@@ -1,3 +1,4 @@
+// console.log("🔌 Initializing Database Connections...");
 const mysql = require("mysql2/promise");
 
 // Common DB config
@@ -8,6 +9,7 @@ const baseConfig = {
   waitForConnections: true,
   connectionLimit: 10,
 };
+// console.log("🔧 Base DB Config Loaded:" )
 
 // 🔐 AUTH DB
 const authDB = mysql.createPool({
@@ -15,24 +17,27 @@ const authDB = mysql.createPool({
   database: process.env.MYSQL_AUTH_DATABASE,
 });
 
+// console.log("🔐 Auth DB Config:")
+
 // 👨‍💼 ADMIN DB
 const adminDB = mysql.createPool({
   ...baseConfig,
   database: process.env.MYSQL_ADMIN_DATABASE,
 });
+//console.log("👨‍💼 Admin DB Config:")
 
 // 📦 PRODUCT DB
 const productDB = mysql.createPool({
   ...baseConfig,
   database: process.env.MYSQL_PRODUCT_DATABASE,
 });
-
+//console.log("📦 Product DB Config:")
 // 🛒 CART DB
 const cartDB = mysql.createPool({
   ...baseConfig,
   database: process.env.CART_DB_NAME,
 });
-
+//console.log("🛒 Cart DB Config:")
 // Test connections
 (async () => {
   try {

@@ -1,10 +1,9 @@
 import redis from "../db/radis.js";
 import { authDB } from "../db/db.js";
 import { sendSMS } from "../services/opt.service.js"; // SMS OTP Service
-//const { sendEmail } = require("../services/sendEmail.service"); // Email OTP Service
 import { sendEmail } from "../services/sendEmail.service.js"; // Email OTP Service
 
-console.log("Loaded supplierOtp.controller.js");
+//console.log("Loaded supplierOtp.controller.js");
 
 /* ============================================================
    📌 SEND OTP TO PHONE (REGISTER)
@@ -210,7 +209,7 @@ export const supplierRegisterVerifyOTP = async (req, res) => {
 // };
 
 export const supplierRegisterSendEmailOTP = async (req, res) => {
-  console.log("Received request to send email OTP:", req.body);
+  //console.log("Received request to send email OTP:", req.body);
 
   try {
     // ❌ remove await here
@@ -222,11 +221,11 @@ export const supplierRegisterSendEmailOTP = async (req, res) => {
       });
     }
 
-    console.log("Received Email:", email);
+    //console.log("Received Email:", email);
 
     email = email.toLowerCase().trim();
 
-    console.log("Normalized Email:", email);
+    //console.log("Normalized Email:", email);
 
     // ✅ CHECK EMAIL EXISTS
     const [supplier] = await authDB.query(
@@ -234,7 +233,7 @@ export const supplierRegisterSendEmailOTP = async (req, res) => {
       [email]
     );
 
-    console.log("Supplier Check Result:", supplier);
+    //console.log("Supplier Check Result:", supplier);
 
     if (supplier.length > 0) {
       return res.status(409).json({
@@ -247,7 +246,7 @@ export const supplierRegisterSendEmailOTP = async (req, res) => {
       100000 + Math.random() * 900000
     ).toString();
 
-    console.log("Generated OTP:", otp);
+    //console.log("Generated OTP:", otp);
 
     // ✅ SAVE OTP IN REDIS
     await redis.set(
@@ -258,7 +257,7 @@ export const supplierRegisterSendEmailOTP = async (req, res) => {
       }
     );
 
-    console.log("OTP Saved in Redis");
+    //console.log("OTP Saved in Redis");
 
     // ✅ SEND EMAIL
     await sendEmail(
@@ -267,7 +266,7 @@ export const supplierRegisterSendEmailOTP = async (req, res) => {
       `${otp} is your email verification OTP. Do not share it with anyone.`
     );
 
-    console.log("Email sent successfully");
+    //console.log("Email sent successfully");
 
     return res.status(200).json({
       message: "Email OTP Sent Successfully!",
