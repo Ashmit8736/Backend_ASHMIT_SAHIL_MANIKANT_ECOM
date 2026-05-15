@@ -9,7 +9,7 @@ const verifySupplierProduct = async (req, res, next) => {
                 ? req.headers.authorization.split(" ")[1]
                 : req.cookies?.suppliertoken; // ✅ SAME AS LOGIN
 
-        console.log("🔐 SUPPLIER TOKEN:", token);
+        //console.log("🔐 SUPPLIER TOKEN:", token);
 
         if (!token || token === "undefined" || token === "null") {
             return res.status(401).json({ message: "Supplier not logged in" });

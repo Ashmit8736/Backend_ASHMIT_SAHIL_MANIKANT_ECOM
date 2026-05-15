@@ -154,7 +154,7 @@ const supplierAuthMiddleware = async (req, res, next) => {
   } catch (err) {
     // console.error("SUPPLIER AUTH ERROR:", err.message);
 
-    return res.status(401).json({
+    return res.status(404).json({
       success: false,
       message: "Invalid or expired token",
     });

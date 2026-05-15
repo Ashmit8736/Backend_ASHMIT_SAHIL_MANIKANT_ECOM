@@ -994,7 +994,7 @@ export async function getSupplierProfile(req, res) {
 
     } catch (err) {
         console.error("Get Supplier Profile Error:", err);
-        res.status(500).json({ message: "Failed to load profile" });
+        res.status(404).json({ message: "Failed to load profile" });
     }
 }
 
