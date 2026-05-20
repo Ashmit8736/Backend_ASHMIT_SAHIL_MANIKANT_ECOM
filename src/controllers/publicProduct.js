@@ -32,6 +32,7 @@ export async function getPublicProducts(req, res) {
             FROM product p
             LEFT JOIN category_master cm 
                 ON p.category_master_id = cm.id
+            WHERE p.status = 'active'
             ORDER BY p.product_id DESC
         `);
 
@@ -65,7 +66,7 @@ export async function getPublicProductById(req, res) {
             FROM product p
             LEFT JOIN category_master cm 
                 ON p.category_master_id = cm.id
-            WHERE p.product_id = ?
+            WHERE p.product_id = ? AND p.status = 'active'
         `, [id]);
 
         if (!rows.length) {
@@ -127,7 +128,7 @@ export async function getPublicProductsByCategory(req, res) {
             FROM product p
             JOIN category_master cm 
                 ON p.category_master_id = cm.id
-            WHERE p.category_master_id IN (?)
+            WHERE p.category_master_id IN (?) AND p.status = 'active'
             ORDER BY p.created_at DESC
             `,
             [ids]
@@ -182,7 +183,7 @@ export async function getPublicProductDetails(req, res) {
                         WHERE product_id = p.product_id
                     ) AS images
                 FROM product p
-                WHERE p.product_id = ?
+                WHERE p.product_id = ? AND p.status = 'active'
                 LIMIT 1
                 `,
                 [id]

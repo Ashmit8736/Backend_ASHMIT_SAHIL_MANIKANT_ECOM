@@ -46,6 +46,8 @@ import {
    getSupplierDashboardStats,
    getSupplierRecentOrders,
    supplierCreateCustomCategory,
+   updateSupplierItemStatus,
+   updateSupplierProductStatus,
 
 } from "../controllers/supplierProduct.js";
 
@@ -92,6 +94,13 @@ router.put(
    updateSupplierProduct
 );
 
+// 5.5️⃣ Update Product Status
+router.put(
+   "/products/:id/status",
+   verifySupplierProduct,
+   updateSupplierProductStatus
+);
+
 // 6️⃣ Delete Product
 router.delete(
    "/products/:id",
@@ -128,6 +137,9 @@ router.put(
    verifySupplierProduct,
    updateSupplierOrderStatus
 );
+
+// ✅ Nayi add karo:
+router.put("/orders/:orderId/item/:itemId/status", verifySupplierProduct, updateSupplierItemStatus);
 
 /* ======================================================
    👤 PROFILE & SETTINGS

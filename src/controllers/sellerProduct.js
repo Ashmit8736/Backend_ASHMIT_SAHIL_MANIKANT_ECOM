@@ -708,6 +708,83 @@ async function requestWithdraw(req, res) {
 // };
 
 
+// export const getSellerOrders = async (req, res) => {
+//   try {
+//     if (!req.seller?.id) {
+//       return res.status(401).json({ message: "Unauthorized" });
+//     }
+
+//     const sellerId = req.seller.id;
+
+//     const [rows] = await cartDb.query(
+//       `
+//   SELECT
+//     bo.order_id AS order_id,
+//     bo.order_status AS status,
+//     bo.fulfillment_type,
+//     DATE_FORMAT(CONVERT_TZ(bo.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS created_at,
+
+//     ba.full_name AS buyer_name,
+//     ba.phone AS buyer_phone,
+//     ba.address_line,
+//     ba.city,
+//     ba.state,
+//     ba.pincode,
+
+//     p.product_name,
+//     oi.quantity,
+//     oi.subtotal AS base_amount,
+//     IFNULL(oi.gst_amount, 0) AS gst_amount,
+//     (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS amount
+
+//   FROM ecommerce_mojija_cart.order_items oi
+//   JOIN ecommerce_mojija_cart.buyer_orders bo
+//     ON oi.order_id = bo.order_id
+//   JOIN ecommerce_mojija_product.product p
+//     ON oi.product_id = p.product_id
+//   LEFT JOIN ecommerce_mojija_cart.buyer_addresses ba
+//     ON bo.address_id = ba.address_id
+
+//   WHERE oi.owner_type = 'seller'
+//     AND p.seller_id = ?
+
+//   ORDER BY bo.created_at DESC
+//   `,
+//       [sellerId]
+//     );
+
+//     const orders = rows.map(o => ({
+//       order_id: o.order_id,
+//       status: o.status,
+//       fulfillment_type: o.fulfillment_type,
+//       payment_mode: "COD",
+//       product_name: o.product_name,
+//       quantity: o.quantity,
+//       base_amount: o.base_amount,   // ✅ subtotal without GST
+//       gst_amount: o.gst_amount,     // ✅ GST amount
+//       amount: o.amount,             // ✅ total with GST included
+//       buyer_name: o.buyer_name,
+//       buyer_phone: o.buyer_phone,
+//       created_at: o.created_at,
+//       address:
+//         o.fulfillment_type === "pickup"
+//           ? "Pickup Order"
+//           : {
+//             address_line: o.address_line,
+//             city: o.city,
+//             state: o.state,
+//             pincode: o.pincode,
+//           }
+//     }));
+
+//     return res.json({ success: true, orders });
+
+//   } catch (err) {
+//     console.error("GET SELLER ORDERS ERROR:", err);
+//     return res.status(500).json({ message: "Internal Server Error" });
+//   }
+// };
+
 export const getSellerOrders = async (req, res) => {
   try {
     if (!req.seller?.id) {
@@ -732,10 +809,13 @@ export const getSellerOrders = async (req, res) => {
     ba.pincode,
 
     p.product_name,
+    oi.order_item_id,
+    oi.item_status,
     oi.quantity,
     oi.subtotal AS base_amount,
     IFNULL(oi.gst_amount, 0) AS gst_amount,
-    (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS amount
+    (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS amount,
+    oi.cancel_reason
 
   FROM ecommerce_mojija_cart.order_items oi
   JOIN ecommerce_mojija_cart.buyer_orders bo
@@ -755,17 +835,27 @@ export const getSellerOrders = async (req, res) => {
 
     const orders = rows.map(o => ({
       order_id: o.order_id,
+      order_item_id: o.order_item_id,   // ✅ ADD — item-level update ke liye
+      item_status: o.item_status,        // ✅ ADD — har item ka alag status
       status: o.status,
       fulfillment_type: o.fulfillment_type,
       payment_mode: "COD",
       product_name: o.product_name,
       quantity: o.quantity,
-      base_amount: o.base_amount,   // ✅ subtotal without GST
-      gst_amount: o.gst_amount,     // ✅ GST amount
-      amount: o.amount,             // ✅ total with GST included
+      base_amount: o.base_amount,
+      gst_amount: o.gst_amount,
+      amount: o.amount,
       buyer_name: o.buyer_name,
       buyer_phone: o.buyer_phone,
       created_at: o.created_at,
+      // ✅ items array — frontend Update modal ke liye
+      items: [{
+        order_item_id: o.order_item_id,
+        product_name: o.product_name,
+        item_status: o.item_status,
+        quantity: o.quantity,
+        cancel_reason: o.cancel_reason,
+      }],
       address:
         o.fulfillment_type === "pickup"
           ? "Pickup Order"
@@ -881,6 +971,7 @@ async function getSellerProducts(req, res) {
         p.remaining_stock,
         p.short_description,
         p.long_description,
+        p.status,
         DATE_FORMAT(CONVERT_TZ(p.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS created_at,
         cm.category_name,
         JSON_ARRAYAGG(JSON_EXTRACT(pu.url, '$[0]')) AS image_urls
@@ -1117,7 +1208,155 @@ for (let i = 6; i >= 0; i--) {
     return res.status(500).json({ message: "Failed to fetch order graph" });
   }
 };
+async function updateItemStatus(req, res) {
+  try {
+    if (!req.seller?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
+    const sellerId = req.seller.id;
+    const { orderId, itemId } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    // ✅ Verify karo — yeh item is seller ka hai
+    const [check] = await cartDb.query(
+      `SELECT oi.order_item_id 
+       FROM ecommerce_mojija_cart.order_items oi
+       JOIN ecommerce_mojija_product.product p 
+         ON oi.product_id = p.product_id
+       WHERE oi.order_item_id = ? 
+         AND oi.order_id = ?
+         AND p.seller_id = ?
+         AND oi.owner_type = 'seller'`,
+      [itemId, orderId, sellerId]
+    );
+
+    if (!check.length) {
+      return res.status(404).json({ message: "Item not found or unauthorized" });
+    }
+
+    // ✅ Item status update karo
+    await cartDb.query(
+      `UPDATE ecommerce_mojija_cart.order_items
+       SET item_status = ?
+       WHERE order_item_id = ? AND order_id = ?`,
+      [status, itemId, orderId]
+    );
+
+    // ✅ Insert into tracking table
+    await cartDb.query(
+      `INSERT INTO ecommerce_mojija_cart.order_tracking (order_item_id, status, message)
+       VALUES (?, ?, ?)`,
+      [itemId, status, `Order item status updated to ${status} by Seller`]
+    );
+
+    // ✅ Order ka overall status auto-update
+    const [items] = await cartDb.query(
+      `SELECT item_status 
+       FROM ecommerce_mojija_cart.order_items 
+       WHERE order_id = ?`,
+      [orderId]
+    );
+
+    const allMatch = (s) => items.every(i => i.item_status === s);
+    const anyMatch = (s) => items.some(i => i.item_status === s);
+
+    let newOrderStatus = null;
+    if (allMatch('delivered'))      newOrderStatus = 'delivered';
+    else if (allMatch('cancelled')) newOrderStatus = 'cancelled';
+    else if (anyMatch('shipped'))   newOrderStatus = 'shipped';
+    else if (anyMatch('confirmed')) newOrderStatus = 'confirmed';
+
+    if (newOrderStatus) {
+      await cartDb.query(
+        `UPDATE ecommerce_mojija_cart.buyer_orders
+         SET order_status = ?
+         WHERE order_id = ?`,
+        [newOrderStatus, orderId]
+      );
+    }
+
+    return res.json({ success: true, message: "Item status updated" });
+
+  } catch (err) {
+    console.error("UPDATE ITEM STATUS ERROR:", err);
+    return res.status(500).json({ message: "Failed to update item status" });
+  }
+}
+
+async function getOrderTracking(req, res) {
+  try {
+
+    const { itemId } = req.params;
+
+    const [rows] = await cartDb.query(
+      `
+      SELECT
+        tracking_id,
+        order_item_id,
+        status,
+        message,
+        created_at
+
+      FROM ecommerce_mojija_cart.order_tracking
+
+      WHERE order_item_id = ?
+
+      ORDER BY created_at ASC
+      `,
+      [itemId]
+    );
+
+    return res.json({
+      success: true,
+      data: rows,
+    });
+
+  } catch (err) {
+
+    console.error(
+      "GET TRACKING ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch tracking",
+    });
+  }
+}
+
+
+async function updateProductStatus(req, res) {
+  try {
+    const sellerId = req.seller.id;
+    const productId = req.params.id;
+    const { status } = req.body;
+
+    if (!['active', 'deactive'].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const [result] = await db.query(
+      `UPDATE product SET status = ? WHERE product_id = ? AND seller_id = ?`,
+      [status, productId, sellerId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Product not found or unauthorized" });
+    }
+
+    res.json({ success: true, message: "Status updated successfully" });
+  } catch (err) {
+    console.error("UPDATE PRODUCT STATUS ERROR:", err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
 
 
 
@@ -1145,5 +1384,7 @@ export {
   sellerCreateCustomCategory,
   // createWithdrawRequest,
   updateProductImages,
-
+  updateItemStatus,
+  getOrderTracking,
+  updateProductStatus,
 };

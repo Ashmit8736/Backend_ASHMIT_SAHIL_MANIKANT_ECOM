@@ -246,7 +246,7 @@ export const supplierRegisterSendEmailOTP = async (req, res) => {
       100000 + Math.random() * 900000
     ).toString();
 
-    //console.log("Generated OTP:", otp);
+    console.log("Generated OTP:", otp);
 
     // ✅ SAVE OTP IN REDIS
     await redis.set(

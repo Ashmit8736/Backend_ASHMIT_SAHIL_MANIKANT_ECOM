@@ -7,7 +7,7 @@ const { cartDB } = require("../db/db");
 /* ===============================
    ADD TO CART
 ================================ */
-async function addToCart(req, res) {
+async function  addToCart(req, res) {
   let conn;
 
   try {
