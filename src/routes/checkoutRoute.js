@@ -26,6 +26,9 @@ const {
   updateAddress,
   deleteAddress,
   cancelOrder,
+  cancelOrderItem,
+  updateItemStatus,
+  getBuyerOrderTracking
 } = require("../controllers/checkout.controller");
 
 const router = express.Router();
@@ -37,5 +40,10 @@ router.post("/address", authMiddleware, addAddress);
 router.put("/address/:address_id", authMiddleware, updateAddress);
 router.delete("/address/:address_id", authMiddleware, deleteAddress);
 router.put("/order/:id/cancel", authMiddleware, cancelOrder);
+router.put("/order/:orderId/item/:itemId/cancel", authMiddleware, cancelOrderItem);
+router.put('/order/:orderId/item/:itemId/status', authMiddleware, updateItemStatus);
+
+// ✅ TRACKING ROUTE ADD KARO
+router.get("/orders/item/:itemId/tracking", authMiddleware, getBuyerOrderTracking);
 
 module.exports = router;

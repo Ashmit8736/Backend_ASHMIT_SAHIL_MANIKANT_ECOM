@@ -206,6 +206,7 @@ export async function getSupplierProducts(req, res) {
         p.product_id,
         p.product_name,
         p.wholesale_price,
+        p.status,
         p.created_at,
         
         JSON_ARRAYAGG(spu.url) AS images
@@ -227,6 +228,32 @@ export async function getSupplierProducts(req, res) {
     } catch (err) {
         console.error("Supplier Get Products Error:", err);
         res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+export async function updateSupplierProductStatus(req, res) {
+    try {
+        const supplierId = req.supplier.id;
+        const productId = req.params.id;
+        const { status } = req.body;
+
+        if (!['active', 'deactive'].includes(status)) {
+            return res.status(400).json({ message: "Invalid status" });
+        }
+
+        const [result] = await db.query(
+            `UPDATE supplier_product SET status = ? WHERE product_id = ? AND supplier_id = ?`,
+            [status, productId, supplierId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Product not found or unauthorized" });
+        }
+
+        res.json({ success: true, message: "Status updated successfully" });
+    } catch (err) {
+        console.error("UPDATE SUPPLIER PRODUCT STATUS ERROR:", err);
+        res.status(500).json({ message: "Internal Server Error" });
     }
 }
 
@@ -566,10 +593,15 @@ export const getSupplierOrders = async (req, res) => {
       params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
 
+    // if (status) {
+    //   where += ` AND bo.order_status = ?`;
+    //   params.push(status);
+    // }
+
     if (status) {
-      where += ` AND bo.order_status = ?`;
-      params.push(status);
-    }
+  where += ` AND oi.item_status = ?`;   // ✅ item level filter
+  params.push(status);
+}
 
     let orderBy = `ORDER BY bo.created_at DESC`;
     if (sort === "Oldest First")   orderBy = `ORDER BY bo.created_at ASC`;
@@ -613,8 +645,10 @@ export const getSupplierOrders = async (req, res) => {
         oi.product_id,
         oi.quantity,
         oi.subtotal,
+        oi.item_status, 
         IFNULL(oi.gst_amount, 0) AS gst_amount,
         (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS total_amount,
+        oi.cancel_reason,
         bo.order_status,
         bo.created_at,
         bo.payment_mode,
@@ -666,7 +700,9 @@ export const getSupplierOrders = async (req, res) => {
         gst_amount: o.gst_amount,
         amount: o.total_amount,
         paymentMode: o.payment_mode,
-        status: o.order_status,
+        // status: o.order_status,
+        status: o.item_status, 
+        cancel_reason: o.cancel_reason,
       })),
       pagination: {
         currentPage: page,
@@ -2310,4 +2346,84 @@ export async function supplierCreateCustomCategory(req, res) {
     }
 }
 
+export async function updateSupplierItemStatus(req, res) {
+  try {
+    if (!req.supplier?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const supplierId = req.supplier.id;
+    const { orderId, itemId } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    // ✅ Verify — yeh item is supplier ka hai
+    const [check] = await cartDb.query(
+      `SELECT oi.order_item_id 
+       FROM ecommerce_mojija_cart.order_items oi
+       JOIN ecommerce_mojija_product.supplier_product sp 
+         ON oi.product_id = sp.product_id
+       WHERE oi.order_item_id = ? 
+         AND oi.order_id = ?
+         AND sp.supplier_id = ?
+         AND oi.owner_type = 'supplier'`,
+      [itemId, orderId, supplierId]
+    );
+
+    if (!check.length) {
+      return res.status(404).json({ message: "Item not found or unauthorized" });
+    }
+
+    // ✅ Item status update
+    await cartDb.query(
+      `UPDATE ecommerce_mojija_cart.order_items
+       SET item_status = ?
+       WHERE order_item_id = ? AND order_id = ?`,
+      [status, itemId, orderId]
+    );
+
+    // ✅ Insert into tracking table
+    await cartDb.query(
+      `INSERT INTO ecommerce_mojija_cart.order_tracking (order_item_id, status, message)
+       VALUES (?, ?, ?)`,
+      [itemId, status, `Order item status updated to ${status} by Supplier`]
+    );
+
+    // ✅ Order overall status auto-update
+    const [items] = await cartDb.query(
+      `SELECT item_status 
+       FROM ecommerce_mojija_cart.order_items 
+       WHERE order_id = ?`,
+      [orderId]
+    );
+
+    const allMatch = (s) => items.every(i => i.item_status === s);
+    const anyMatch = (s) => items.some(i => i.item_status === s);
+
+    let newOrderStatus = null;
+    if (allMatch('delivered'))      newOrderStatus = 'delivered';
+    else if (allMatch('cancelled')) newOrderStatus = 'cancelled';
+    else if (anyMatch('shipped'))   newOrderStatus = 'shipped';
+    else if (anyMatch('confirmed')) newOrderStatus = 'confirmed';
+
+    if (newOrderStatus) {
+      await cartDb.query(
+        `UPDATE ecommerce_mojija_cart.buyer_orders
+         SET order_status = ?
+         WHERE order_id = ?`,
+        [newOrderStatus, orderId]
+      );
+    }
+
+    return res.json({ success: true, message: "Item status updated" });
+
+  } catch (err) {
+    console.error("UPDATE SUPPLIER ITEM STATUS ERROR:", err);
+    return res.status(500).json({ message: "Failed to update item status" });
+  }
+}
 
