@@ -107,39 +107,57 @@ const sellerAuthMiddleware = async (req, res, next) => {
    SUPPLIER AUTH MIDDLEWARE ⭐ NEW
 -------------------------------- */
 const supplierAuthMiddleware = async (req, res, next) => {
-  try {
-    // 🔐 TOKEN FROM HEADER OR COOKIE
-    const token =
-      req.headers.authorization?.startsWith("Bearer ")
-        ? req.headers.authorization.split(" ")[1]
-        : req.cookies?.suppliertoken;
+ try {
+    // 🔐 GET TOKEN FROM HEADER OR COOKIE
+    let token;
 
-    console.log("🔐 SUPPLIER TOKEN:", token);
-
-    if (!token) {
-      return res.status(401).json({ message: "Supplier not logged in" });
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    } else if (req.cookies?.suppliertoken) {
+      token = req.cookies.suppliertoken;
     }
 
-    // VERIFY TOKEN
+    // console.log("🔐 SUPPLIER TOKEN:", token);
+
+    // NO TOKEN
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Supplier not logged in",
+      });
+    }
+
+    // VERIFY JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // const db = await connectDb();
+    // FETCH SUPPLIER
     const [rows] = await authDB.query(
       "SELECT * FROM supplier WHERE id = ?",
       [decoded.id]
     );
 
-    if (!rows.length) {
-      return res.status(404).json({ message: "Supplier not found" });
+    // SUPPLIER NOT FOUND
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Supplier not found",
+      });
     }
 
-    // ATTACH SUPPLIER
+    // ATTACH SUPPLIER TO REQUEST
     req.supplier = rows[0];
-    next();
 
+    next();
   } catch (err) {
-    console.error("SUPPLIER AUTH ERROR:", err);
-    return res.status(401).json({ message: "Invalid or expired token" });
+    // console.error("SUPPLIER AUTH ERROR:", err.message);
+
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token",
+    });
   }
 };
 

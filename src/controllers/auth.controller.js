@@ -7,8 +7,6 @@ const { sendSMS2 } = require("../services/opt.service");
 const normalizeIndianPhone = require("../utils/phone");
 const { isStrongPassword } = require("../utils/passwordValidator");
 
-
-
 async function checkAuthUserExists(phone, email) {
   const [rows] = await authDB.query(
     "SELECT role FROM auth_users WHERE phone = ? OR email = ? LIMIT 1",
@@ -16,8 +14,6 @@ async function checkAuthUserExists(phone, email) {
   );
   return rows.length ? rows[0] : null;
 }
-
-
 
 async function registerController(req, res) {
   let conn;
@@ -142,7 +138,7 @@ async function loginController(req, res) {
     res.cookie("token", token, {
       httpOnly: true,
       // secure: process.env.NODE_ENV === "production",
-      secure: false,
+      secure: true, // Always secure in modern browsers, even on localhost
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: "/",
@@ -160,7 +156,7 @@ async function loginController(req, res) {
 
   } catch (err) {
     console.error("LOGIN ERROR:", err);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(404).json({ message: "unable to login user" });
   }
 }
 

@@ -19,7 +19,11 @@ import {
         updateProductImages,
         getSellerDashboardStats,
         getSellerOrderGraph,
+        updateItemStatus,
+        getOrderTracking,
+        updateProductStatus,
 } from "../controllers/sellerProduct.js";
+import verifyBuyer from "../middlewares/buyerAuth.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -30,6 +34,7 @@ router.post("/product/image", verifySellerProduct, upload.array("image", 5), sel
 
 // UPDATE / DELETE
 router.put("/product/:id", verifySellerProduct, updateProduct);
+router.put("/product/:id/status", verifySellerProduct, updateProductStatus);
 router.delete("/product/:id", verifySellerProduct, deleteProduct);
 
 // INVENTORY
@@ -42,8 +47,19 @@ router.get("/payments/transactions", verifySellerProduct, getSellerTransactions)
 router.post("/payments/withdraw", verifySellerProduct, requestWithdraw);
 
 // ORDERS
+// ✅ TRACKING FETCH
+router.get(
+  "/orders/item/:itemId/tracking",
+  verifySellerProduct,
+  getOrderTracking
+);
+
+
 router.get("/orders", verifySellerProduct, getSellerOrders);
 router.put("/orders/:id/status", verifySellerProduct, updateOrderStatus);
+// ✅ YAHAN ADD KARO — item-level status update
+router.put("/orders/:orderId/item/:itemId/status", verifySellerProduct, updateItemStatus);
+
 
 // PRODUCTS (LIST)
 router.get("/products", verifySellerProduct, getSellerProducts);
