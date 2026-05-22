@@ -7,6 +7,7 @@ export async function getPublicCategories(req, res) {
                 c.id,
                 c.category_name AS name,
                 c.image_url,
+                c.show_price,
                 (
                     SELECT COUNT(*)
                     FROM supplier_product sp
@@ -43,7 +44,8 @@ export async function publicGetCategoryTree(req, res) {
                 category_name,
                 parent_id,
                 level,
-                image_url
+                image_url,
+                show_price
             FROM category_master
             WHERE status = 1
             ORDER BY level, category_name
@@ -119,6 +121,9 @@ export const getProductsByCategory = async (req, res) => {
                 sp.gst_verified,
                 sp.rating_avg,
                 'supplier' AS product_source,
+                IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+                cm.parent_id AS category_parent_id,
+                cm.id AS category_id,
                 (
                     SELECT JSON_ARRAYAGG(spu.url)
                     FROM supplier_product_url spu
@@ -126,6 +131,8 @@ export const getProductsByCategory = async (req, res) => {
                 ) AS images,
                 sp.created_at
             FROM supplier_product sp
+            LEFT JOIN category_master cm
+                ON sp.category_master_id = cm.id
             WHERE sp.category_master_id IN (?)
               AND sp.status = 'active'
             ORDER BY sp.created_at DESC

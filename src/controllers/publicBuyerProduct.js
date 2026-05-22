@@ -17,12 +17,15 @@ export async function getBuyerProducts(req, res) {
         p.gst_verified,
         p.rating_avg,
         p.remaining_stock,
-        c.category_name,
+        cm.category_name,
         'seller' AS product_source,
+        IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+        cm.parent_id AS category_parent_id,
+        cm.id AS category_id,
         (SELECT JSON_ARRAYAGG(JSON_EXTRACT(url, '$[0]'))
          FROM product_url WHERE product_id = p.product_id) AS images
       FROM product p
-      LEFT JOIN category c ON p.category_id = c.id
+      LEFT JOIN category_master cm ON p.category_master_id = cm.id
     `);
 
     // SUPPLIER PRODUCTS
@@ -36,12 +39,15 @@ export async function getBuyerProducts(req, res) {
         p.gst_verified,
         p.rating_avg,
         NULL AS remaining_stock,
-        sc.supplier_company AS category_name,
+        cm.category_name,
         'supplier' AS product_source,
+        IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+        cm.parent_id AS category_parent_id,
+        cm.id AS category_id,
         (SELECT JSON_ARRAYAGG(JSON_EXTRACT(url, '$[0]'))
          FROM supplier_product_url WHERE product_id = p.product_id) AS images
       FROM supplier_product p
-      LEFT JOIN supplier_category sc ON p.category_id = sc.id
+      LEFT JOIN category_master cm ON p.category_master_id = cm.id
     `);
 
     const products = [...sellerProducts, ...supplierProducts];
@@ -62,15 +68,73 @@ export async function getBuyerProducts(req, res) {
 export const getPopularProducts = async (req, res) => {
   try {
     const [rows] = await db.query("CALL sp_get_popular_products()");
+    const rawProducts = rows[0] || [];
 
-    const products = rows[0].map(p => ({
-      ...p,
-      images: p.images
-        ? Array.isArray(p.images)
-          ? p.images
-          : JSON.parse(p.images)
-        : []
-    }));
+    if (rawProducts.length === 0) {
+      return res.json({ success: true, products: [] });
+    }
+
+    // Separate seller and supplier product IDs to fetch category info
+    const sellerIds = rawProducts.filter(p => p.product_source === 'seller').map(p => p.product_id);
+    const supplierIds = rawProducts.filter(p => p.product_source === 'supplier').map(p => p.product_id);
+
+    let categoryMap = {}; // key: "source-id", value: { category_id, category_parent_id, category_name, category_show_price }
+
+    if (sellerIds.length > 0) {
+      const [sellerCols] = await db.query(`
+        SELECT 
+          p.product_id,
+          cm.id AS category_id,
+          cm.parent_id AS category_parent_id,
+          cm.category_name,
+          IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price
+        FROM product p
+        LEFT JOIN category_master cm ON p.category_master_id = cm.id
+        WHERE p.product_id IN (?)
+      `, [sellerIds]);
+      
+      sellerCols.forEach(row => {
+        categoryMap[`seller-${row.product_id}`] = row;
+      });
+    }
+
+    if (supplierIds.length > 0) {
+      const [supplierCols] = await db.query(`
+        SELECT 
+          sp.product_id,
+          cm.id AS category_id,
+          cm.parent_id AS category_parent_id,
+          cm.category_name,
+          IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price
+        FROM supplier_product sp
+        LEFT JOIN category_master cm ON sp.category_master_id = cm.id
+        WHERE sp.product_id IN (?)
+      `, [supplierIds]);
+
+      supplierCols.forEach(row => {
+        categoryMap[`supplier-${row.product_id}`] = row;
+      });
+    }
+
+    const products = rawProducts.map(p => {
+      const source = p.product_source || p.owner_type || p.source || "seller";
+      const key = `${source}-${p.product_id}`;
+      const catInfo = categoryMap[key] || {};
+      
+      return {
+        ...p,
+        product_source: source,
+        category_id: catInfo.category_id || null,
+        category_parent_id: catInfo.category_parent_id || null,
+        category_name: catInfo.category_name || null,
+        category_show_price: catInfo.category_show_price !== undefined ? catInfo.category_show_price : 1,
+        images: p.images
+          ? Array.isArray(p.images)
+            ? p.images
+            : JSON.parse(p.images)
+          : []
+      };
+    });
 
     res.json({
       success: true,
@@ -122,6 +186,9 @@ export const getProductsByCategory = async (req, res) => {
         p.remaining_stock,
         p.metal_type,
         'seller' AS product_source,
+        IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+        cm.parent_id AS category_parent_id,
+        cm.id AS category_id,
         (
           SELECT JSON_ARRAYAGG(JSON_EXTRACT(pu.url, '$[0]'))
           FROM product_url pu
@@ -129,6 +196,7 @@ export const getProductsByCategory = async (req, res) => {
         ) AS images,
         p.created_at
       FROM product p
+      LEFT JOIN category_master cm ON p.category_master_id = cm.id
       WHERE p.category_id IN (?)
       `,
       [ids]
@@ -147,6 +215,9 @@ export const getProductsByCategory = async (req, res) => {
         NULL AS remaining_stock,
         sp.metal_type,
         'supplier' AS product_source,
+        IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+        cm.parent_id AS category_parent_id,
+        cm.id AS category_id,
         (
           SELECT JSON_ARRAYAGG(spu.url)
           FROM supplier_product_url spu
@@ -154,6 +225,7 @@ export const getProductsByCategory = async (req, res) => {
         ) AS images,
         sp.created_at
       FROM supplier_product sp
+      LEFT JOIN category_master cm ON sp.category_master_id = cm.id
       WHERE sp.category_master_id IN (?)
         AND sp.status = 'active'
       `,
@@ -235,12 +307,16 @@ export const getBuyerProductsByCategory = async (req, res) => {
         p.remaining_stock,
         p.metal_type,
         'seller' AS product_source,
+        IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+        cm.parent_id AS category_parent_id,
+        cm.id AS category_id,
         (
           SELECT JSON_ARRAYAGG(pu.url)
           FROM product_url pu
           WHERE pu.product_id = p.product_id
         ) AS images
       FROM product p
+      LEFT JOIN category_master cm ON p.category_master_id = cm.id
       WHERE p.category_master_id IN (?)
 
       UNION ALL
@@ -255,12 +331,16 @@ export const getBuyerProductsByCategory = async (req, res) => {
         sp.remaining_stock,
         sp.metal_type,
         'supplier' AS product_source,
+        IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+        cm.parent_id AS category_parent_id,
+        cm.id AS category_id,
         (
           SELECT JSON_ARRAYAGG(spu.url)
           FROM supplier_product_url spu
           WHERE spu.product_id = sp.product_id
         ) AS images
       FROM supplier_product sp
+      LEFT JOIN category_master cm ON sp.category_master_id = cm.id
       WHERE sp.category_master_id IN (?)
       `,
       [categoryIds, categoryIds]
@@ -346,6 +426,9 @@ export const getBuyerCategoryProducts = async (req, res) => {
           p.rating_avg,
           p.remaining_stock,
           'seller' AS product_source,
+          IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+          cm.parent_id AS category_parent_id,
+          cm.id AS category_id,
           (
             SELECT JSON_ARRAYAGG(pu.url)
             FROM product_url pu
@@ -353,6 +436,7 @@ export const getBuyerCategoryProducts = async (req, res) => {
           ) AS images,
           p.created_at
         FROM product p
+        LEFT JOIN category_master cm ON p.category_master_id = cm.id
         WHERE p.category_master_id IN (${placeholders})
 
         UNION ALL
@@ -367,6 +451,9 @@ export const getBuyerCategoryProducts = async (req, res) => {
           sp.rating_avg,
           sp.remaining_stock,
           'supplier' AS product_source,
+          IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+          cm.parent_id AS category_parent_id,
+          cm.id AS category_id,
           (
             SELECT JSON_ARRAYAGG(spu.url)
             FROM supplier_product_url spu
@@ -374,6 +461,7 @@ export const getBuyerCategoryProducts = async (req, res) => {
           ) AS images,
           sp.created_at
         FROM supplier_product sp
+        LEFT JOIN category_master cm ON sp.category_master_id = cm.id
         WHERE sp.category_master_id IN (${placeholders})
           AND sp.status = 'active'
       ) AS products
@@ -475,6 +563,9 @@ export const searchBuyerProducts = async (req, res) => {
           p.remaining_stock,
           'seller' AS product_source,
           cm.category_name,
+          IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+          cm.parent_id AS category_parent_id,
+          cm.id AS category_id,
           (
             SELECT JSON_ARRAYAGG(pu.url)
             FROM product_url pu
@@ -499,6 +590,9 @@ export const searchBuyerProducts = async (req, res) => {
           sp.remaining_stock,
           'supplier' AS product_source,
           cm.category_name,
+          IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+          cm.parent_id AS category_parent_id,
+          cm.id AS category_id,
           (
             SELECT JSON_ARRAYAGG(spu.url)
             FROM supplier_product_url spu
