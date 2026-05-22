@@ -239,7 +239,7 @@ export async function adminGetCategoryTree(req, res) {
 
         // ✅ Sirf Level 1 paginated fetch karo
         const [level1Rows] = await productDB.query(`
-            SELECT id, category_name, parent_id, level, image_url, status
+            SELECT id, category_name, parent_id, level, image_url, status, show_price
             FROM category_master
             WHERE parent_id IS NULL
             ORDER BY category_name
@@ -253,7 +253,7 @@ export async function adminGetCategoryTree(req, res) {
         if (level1Ids.length > 0) {
             const placeholders = level1Ids.map(() => "?").join(",");
             const [childRows] = await productDB.query(`
-                SELECT id, category_name, parent_id, level, image_url, status
+                SELECT id, category_name, parent_id, level, image_url, status, show_price
                 FROM category_master
                 WHERE parent_id IN (${placeholders})
                 ORDER BY parent_id, category_name
@@ -308,6 +308,7 @@ export async function adminGetCategories(req, res) {
                 c.image_url,
                 c.status,
                 c.created_at,
+                c.show_price,
                 COUNT(p.product_id) AS product_count
             FROM category_master c
             LEFT JOIN supplier_product p 
@@ -628,3 +629,32 @@ export async function adminBulkUploadCategories(req, res) {
         });
     }
 }
+
+/* =====================================================
+   🆕 TOGGLE CATEGORY PRICE VISIBILITY (ADMIN)
+===================================================== */
+export async function adminToggleCategoryPrice(req, res) {
+    try {
+        const id = Number(req.params.id);
+        const { show_price } = req.body;
+
+        if (isNaN(id) || (show_price !== 0 && show_price !== 1)) {
+            return res.status(400).json({ message: "Invalid parameters" });
+        }
+
+        await productDB.query(
+            `UPDATE category_master SET show_price = ? WHERE id = ?`,
+            [show_price, id]
+        );
+
+        res.json({
+            success: true,
+            message: "Category price visibility updated successfully"
+        });
+
+    } catch (err) {
+        console.error("Toggle Category Price Error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
