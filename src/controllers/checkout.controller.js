@@ -99,6 +99,13 @@ async function placeOrder(req, res) {
 
       const orderId = orderResult.insertId;
 
+      // Generate and save Invoice Number
+      const invoiceNo = `INV/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(orderId).padStart(6, '0')}`;
+      await pool.query(
+        `UPDATE ecommerce_mojija_cart.buyer_orders SET invoice_no = ? WHERE order_id = ?`,
+        [invoiceNo, orderId]
+      );
+
       const [itemResult] = await pool.query(
         `INSERT INTO ecommerce_mojija_cart.order_items 
          (order_id, product_id, quantity, unit_price, gst_percent, gst_amount, subtotal, owner_type)
@@ -218,6 +225,13 @@ async function placeOrder(req, res) {
 
       const orderId = orderResult.insertId;
 
+      // Generate and save Invoice Number
+      const invoiceNo = `INV/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(orderId).padStart(6, '0')}`;
+      await pool.query(
+        `UPDATE ecommerce_mojija_cart.buyer_orders SET invoice_no = ? WHERE order_id = ?`,
+        [invoiceNo, orderId]
+      );
+
       // ✅ CHANGE 6 — order_items insert karo har selected item ke liye
       for (const item of cartItemsRows) {
         const subtotal  = Number(item.unit_price) * Number(item.quantity);
@@ -307,7 +321,29 @@ async function getMyOrders(req, res) {
     const buyerId = req.user.id;
     const pool = cartDB;
     const [rows] = await pool.query("CALL GetBuyerOrders(?)", [buyerId]);
-    return res.status(200).json({ success: true, data: rows[0] || [] });
+    const orderItems = rows[0] || [];
+
+    if (orderItems.length > 0) {
+      const orderIds = [...new Set(orderItems.map(item => item.order_id))];
+      const [invoiceRows] = await pool.query(
+        "SELECT order_id, invoice_no FROM buyer_orders WHERE order_id IN (?)",
+        [orderIds]
+      );
+
+      const invoiceMap = {};
+      invoiceRows.forEach(row => {
+        invoiceMap[row.order_id] = row.invoice_no;
+      });
+
+      const enrichedItems = orderItems.map(item => ({
+        ...item,
+        invoice_no: invoiceMap[item.order_id] || null
+      }));
+
+      return res.status(200).json({ success: true, data: enrichedItems });
+    }
+
+    return res.status(200).json({ success: true, data: [] });
   } catch (err) {
     console.error("GET MY ORDERS ERROR:", err);
     return res.status(500).json({ success: false, message: "Failed to fetch orders" });
