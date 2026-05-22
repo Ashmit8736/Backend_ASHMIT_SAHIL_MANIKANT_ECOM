@@ -815,7 +815,9 @@ export const getSellerOrders = async (req, res) => {
     oi.subtotal AS base_amount,
     IFNULL(oi.gst_amount, 0) AS gst_amount,
     (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS amount,
-    oi.cancel_reason
+    oi.cancel_reason,
+DATE_FORMAT(CONVERT_TZ(oi.delivered_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS delivered_at
+    
 
   FROM ecommerce_mojija_cart.order_items oi
   JOIN ecommerce_mojija_cart.buyer_orders bo
@@ -848,6 +850,8 @@ export const getSellerOrders = async (req, res) => {
       buyer_name: o.buyer_name,
       buyer_phone: o.buyer_phone,
       created_at: o.created_at,
+        delivered_at: o.delivered_at || null,   // ✅ YEH LINE MISSING THI
+  cancel_reason: o.cancel_reason, 
       // ✅ items array — frontend Update modal ke liye
       items: [{
         order_item_id: o.order_item_id,
@@ -1208,6 +1212,87 @@ for (let i = 6; i >= 0; i--) {
     return res.status(500).json({ message: "Failed to fetch order graph" });
   }
 };
+// async function updateItemStatus(req, res) {
+//   try {
+//     if (!req.seller?.id) {
+//       return res.status(401).json({ message: "Unauthorized" });
+//     }
+
+//     const sellerId = req.seller.id;
+//     const { orderId, itemId } = req.params;
+//     const { status } = req.body;
+
+//     const validStatuses = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+//     if (!validStatuses.includes(status)) {
+//       return res.status(400).json({ message: "Invalid status" });
+//     }
+
+//     // ✅ Verify karo — yeh item is seller ka hai
+//     const [check] = await cartDb.query(
+//       `SELECT oi.order_item_id 
+//        FROM ecommerce_mojija_cart.order_items oi
+//        JOIN ecommerce_mojija_product.product p 
+//          ON oi.product_id = p.product_id
+//        WHERE oi.order_item_id = ? 
+//          AND oi.order_id = ?
+//          AND p.seller_id = ?
+//          AND oi.owner_type = 'seller'`,
+//       [itemId, orderId, sellerId]
+//     );
+
+//     if (!check.length) {
+//       return res.status(404).json({ message: "Item not found or unauthorized" });
+//     }
+
+//     // ✅ Item status update karo
+//     await cartDb.query(
+//       `UPDATE ecommerce_mojija_cart.order_items
+//        SET item_status = ?
+//        WHERE order_item_id = ? AND order_id = ?`,
+//       [status, itemId, orderId]
+//     );
+
+//     // ✅ Insert into tracking table
+//     await cartDb.query(
+//       `INSERT INTO ecommerce_mojija_cart.order_tracking (order_item_id, status, message)
+//        VALUES (?, ?, ?)`,
+//       [itemId, status, `Order item status updated to ${status} by Seller`]
+//     );
+
+//     // ✅ Order ka overall status auto-update
+//     const [items] = await cartDb.query(
+//       `SELECT item_status 
+//        FROM ecommerce_mojija_cart.order_items 
+//        WHERE order_id = ?`,
+//       [orderId]
+//     );
+
+//     const allMatch = (s) => items.every(i => i.item_status === s);
+//     const anyMatch = (s) => items.some(i => i.item_status === s);
+
+//     let newOrderStatus = null;
+//     if (allMatch('delivered'))      newOrderStatus = 'delivered';
+//     else if (allMatch('cancelled')) newOrderStatus = 'cancelled';
+//     else if (anyMatch('shipped'))   newOrderStatus = 'shipped';
+//     else if (anyMatch('confirmed')) newOrderStatus = 'confirmed';
+
+//     if (newOrderStatus) {
+//       await cartDb.query(
+//         `UPDATE ecommerce_mojija_cart.buyer_orders
+//          SET order_status = ?
+//          WHERE order_id = ?`,
+//         [newOrderStatus, orderId]
+//       );
+//     }
+
+//     return res.json({ success: true, message: "Item status updated" });
+
+//   } catch (err) {
+//     console.error("UPDATE ITEM STATUS ERROR:", err);
+//     return res.status(500).json({ message: "Failed to update item status" });
+//   }
+// }
+
 async function updateItemStatus(req, res) {
   try {
     if (!req.seller?.id) {
@@ -1240,13 +1325,22 @@ async function updateItemStatus(req, res) {
       return res.status(404).json({ message: "Item not found or unauthorized" });
     }
 
-    // ✅ Item status update karo
-    await cartDb.query(
-      `UPDATE ecommerce_mojija_cart.order_items
-       SET item_status = ?
-       WHERE order_item_id = ? AND order_id = ?`,
-      [status, itemId, orderId]
-    );
+    // ✅ Item status update karo (delivered_at auto-set)
+    if (status === 'delivered') {
+      await cartDb.query(
+        `UPDATE ecommerce_mojija_cart.order_items
+         SET item_status = ?, delivered_at = NOW()
+         WHERE order_item_id = ? AND order_id = ?`,
+        [status, itemId, orderId]
+      );
+    } else {
+      await cartDb.query(
+        `UPDATE ecommerce_mojija_cart.order_items
+         SET item_status = ?
+         WHERE order_item_id = ? AND order_id = ?`,
+        [status, itemId, orderId]
+      );
+    }
 
     // ✅ Insert into tracking table
     await cartDb.query(
