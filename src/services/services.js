@@ -16,19 +16,23 @@ async function uploadImage(file) {
         if (!file) throw new Error("No file provided");
 
         // allow jpg / jpeg / png
-        const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+        const allowedTypes = ["image/jpeg","image/png","image/jpg","image/webp"];
         if (!allowedTypes.includes(file.mimetype)) {
-            throw new Error("Only JPG and PNG formats are allowed");
+            throw new Error("Only JPG, PNG and WEBP formats are allowed");
         }
 
-        // resize + compress
+        // Convert ALL images to WEBP
         const compressedBuffer = await sharp(file.buffer)
-            .resize({ width: 1500, withoutEnlargement: true })
-            .jpeg({ quality: 80 })
+            .resize({
+                width: 1500,
+                withoutEnlargement: true
+            })
+            .webp({
+                quality: 80
+            })
             .toBuffer();
-
         // reliable unique file name
-        const fileName = "product_" + Date.now() + ".jpg";
+        const fileName = "product_" + Date.now() + ".webp";
 
         // upload file to imagekit
         const uploaded = await imagekit.upload({

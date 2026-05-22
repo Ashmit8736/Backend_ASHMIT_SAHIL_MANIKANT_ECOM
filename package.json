@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "Auth Service Backend",
   "main": "server.js",
- 
-  "scripts": {
+    "scripts": {
     "start": "nodemon server.js",
     "dev": "nodemon server.js",
     "prod": "node server.js"

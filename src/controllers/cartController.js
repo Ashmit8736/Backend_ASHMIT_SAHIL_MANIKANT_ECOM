@@ -140,21 +140,33 @@ async function updateCartQuantity(req, res) {
     const { cart_id } = req.params;
     const { quantity } = req.body;
 
+    // ✅ Validation
+    if (!quantity || quantity < 1) {
+      return res.status(400).json({
+        message: "Quantity must be greater than 0",
+      });
+    }
+
     const [rows] = await cartDB.query(
       "CALL ecommerce_mojija_cart.UpdateCartQuantity(?, ?)",
       [cart_id, quantity]
     );
 
     return res.status(200).json({
-      message: rows?.[0]?.[0]?.message || "Quantity updated",
+      success: true,
+      message: rows?.[0]?.[0]?.message || "Quantity updated successfully",
     });
 
   } catch (err) {
     console.error("UPDATE CART ERROR:", err);
-    return res.status(500).json({ message: "Failed to update quantity" });
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update quantity",
+      error: err.message,
+    });
   }
 }
-
 /* ===============================
    DELETE FROM CART
 ================================ */
