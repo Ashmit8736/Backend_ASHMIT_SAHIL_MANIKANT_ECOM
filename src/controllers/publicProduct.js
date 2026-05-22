@@ -24,6 +24,9 @@ export async function getPublicProducts(req, res) {
                 p.rating_avg,
                 p.remaining_stock,
                 cm.category_name,
+                IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+                cm.parent_id AS category_parent_id,
+                cm.id AS category_id,
                 (
                     SELECT JSON_ARRAYAGG(url)
                     FROM product_url
@@ -58,6 +61,9 @@ export async function getPublicProductById(req, res) {
                 p.*,
                 p.remaining_stock,
                 cm.category_name,
+                IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+                cm.parent_id AS category_parent_id,
+                cm.id AS category_id,
                 (
                     SELECT JSON_ARRAYAGG(url)
                     FROM product_url
@@ -120,6 +126,9 @@ export async function getPublicProductsByCategory(req, res) {
                 p.rating_avg,
                 p.remaining_stock,
                 cm.category_name,
+                IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+                cm.parent_id AS category_parent_id,
+                cm.id AS category_id,
                 (
                     SELECT JSON_ARRAYAGG(url)
                     FROM product_url
@@ -177,12 +186,16 @@ export async function getPublicProductDetails(req, res) {
                     p.rating_avg,
                     p.seller_id,
                     p.remaining_stock,
+                    IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+                    cm.parent_id AS category_parent_id,
+                    cm.id AS category_id,
                     (
                         SELECT JSON_ARRAYAGG(url)
                         FROM product_url
                         WHERE product_id = p.product_id
                     ) AS images
                 FROM product p
+                LEFT JOIN category_master cm ON p.category_master_id = cm.id
                 WHERE p.product_id = ? AND p.status = 'active'
                 LIMIT 1
                 `,
@@ -248,12 +261,16 @@ export async function getPublicProductDetails(req, res) {
                     sp.supplier_id,
                     sp.remaining_stock,
                     sp.rating_avg,
+                    IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+                    cm.parent_id AS category_parent_id,
+                    cm.id AS category_id,
                     (
                         SELECT JSON_ARRAYAGG(JSON_UNQUOTE(url))
                         FROM supplier_product_url
                         WHERE product_id = sp.product_id
                     ) AS images
                 FROM supplier_product sp
+                LEFT JOIN category_master cm ON sp.category_master_id = cm.id
                 WHERE sp.product_id = ?
                 AND sp.status = 'active'
                 LIMIT 1

@@ -13,13 +13,15 @@ export async function getPublicSupplierProducts(req, res) {
         sp.short_description AS description,
         sp.gst_verified,
         sp.supplier_company,
-          sp.remaining_stock,        -- ✅ stock ke liye
-          sp.rating_avg,             -- ✅ rating ke liye
-
+        sp.remaining_stock,        -- ✅ stock ke liye
+        sp.rating_avg,             -- ✅ rating ke liye
+        IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+        cm.parent_id AS category_parent_id,
+        cm.id AS category_id,
         cm.category_name,
         (
           SELECT JSON_ARRAYAGG(JSON_UNQUOTE(url))
-FROM supplier_product_url
+          FROM supplier_product_url
           WHERE product_id = sp.product_id
         ) AS images
       FROM supplier_product sp
@@ -54,11 +56,13 @@ export async function getPublicSupplierProductById(req, res) {
         sp.stock,
         sp.gst_verified,
         sp.supplier_company,
+        IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+        cm.parent_id AS category_parent_id,
+        cm.id AS category_id,
         cm.category_name,
         (
           SELECT JSON_ARRAYAGG(JSON_UNQUOTE(url))
-FROM supplier_product_url
-
+          FROM supplier_product_url
           WHERE product_id = sp.product_id
         ) AS images
       FROM supplier_product sp
@@ -99,14 +103,15 @@ export async function getPublicSupplierProductsByCategory(req, res) {
         sp.short_description AS description,
         sp.gst_verified,
         sp.supplier_company,
-              sp.remaining_stock,        -- ✅ add karo
-              sp.rating_avg,             -- ✅ add karo
-
+        sp.remaining_stock,        -- ✅ add karo
+        sp.rating_avg,             -- ✅ add karo
+        IF(cm.id = 99 OR cm.parent_id = 99 OR (SELECT parent_id FROM category_master WHERE id = cm.parent_id) = 99, (SELECT show_price FROM category_master WHERE id = 99), cm.show_price) AS category_show_price,
+        cm.parent_id AS category_parent_id,
+        cm.id AS category_id,
         cm.category_name,
         (
           SELECT JSON_ARRAYAGG(JSON_UNQUOTE(url))
-FROM supplier_product_url
-
+          FROM supplier_product_url
           WHERE product_id = sp.product_id
         ) AS images
       FROM supplier_product sp

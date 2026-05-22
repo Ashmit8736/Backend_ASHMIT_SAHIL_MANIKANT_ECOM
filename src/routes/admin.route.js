@@ -58,9 +58,7 @@ const{
     adminAddCategoryV2,
     adminGetCategoryTree,
     adminBulkUploadCategories,
-
-
-
+    adminToggleCategoryPrice,
 }  = require("../controllers/adminCategory.controller.js");
 
 
@@ -1070,6 +1068,15 @@ route.patch("/categories/:id/enable", adminAuth, adminEnableCategory);
  *     tags: [Admin]
  */
 route.patch("/categories/:id/disable", adminAuth, adminDisableCategory);
+
+/**
+ * @swagger
+ * /api/admin/categories/{id}/toggle-price:
+ *   patch:
+ *     summary: Toggle category price visibility
+ *     tags: [Admin]
+ */
+route.patch("/categories/:id/toggle-price", adminAuth, adminToggleCategoryPrice);
 
 // /**
 //  * @swagger
