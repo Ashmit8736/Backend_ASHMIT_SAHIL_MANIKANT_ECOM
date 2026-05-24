@@ -8,6 +8,6 @@ export function generateAdminToken(admin) {
             role: "admin",
         },
         process.env.JWT_SECRET,
-        { expiresIn: "1d" }
+        { expiresIn: "3d" }
     );
 }

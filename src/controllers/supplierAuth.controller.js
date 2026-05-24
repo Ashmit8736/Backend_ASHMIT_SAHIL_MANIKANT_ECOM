@@ -181,7 +181,7 @@ async function supplierLogin(req, res) {
         role: "supplier",
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "7d" }
     );
 
     res.cookie("suppliertoken", token, {
