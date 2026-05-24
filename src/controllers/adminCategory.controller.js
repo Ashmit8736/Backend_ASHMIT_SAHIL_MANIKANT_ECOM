@@ -384,29 +384,35 @@ export async function adminDisableCategory(req, res) {
 export async function adminUpdateCategory(req, res) {
     try {
         const id = Number(req.params.id);
-        const { description, image_url } = req.body;
+        const { description, image_url, category_name } = req.body;
 
         if (isNaN(id)) {
             return res.status(400).json({ message: "Invalid category id" });
         }
 
-        if (!description && !image_url) {
-            return res.status(400).json({
-                message: "Nothing to update"
-            });
-        }
-
         const fields = [];
         const values = [];
 
-        if (description) {
+        // ✅ undefined/null check — empty string bhi valid hai
+        if (category_name !== undefined && category_name !== null) {
+            const trimmed = category_name.trim();
+            if (!trimmed) return res.status(400).json({ message: "Category name cannot be empty" });
+            fields.push("category_name=?");
+            values.push(trimmed);
+        }
+
+        if (description !== undefined && description !== null) {
             fields.push("description=?");
             values.push(description);
         }
 
-        if (image_url) {
+        if (image_url !== undefined && image_url !== null) {
             fields.push("image_url=?");
             values.push(image_url);
+        }
+
+        if (fields.length === 0) {
+            return res.status(400).json({ message: "Nothing to update" });
         }
 
         values.push(id);

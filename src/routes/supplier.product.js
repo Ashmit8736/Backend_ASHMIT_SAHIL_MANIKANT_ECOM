@@ -48,6 +48,8 @@ import {
    supplierCreateCustomCategory,
    updateSupplierItemStatus,
    updateSupplierProductStatus,
+   getSupplierSalesReport,
+   getSupplierProductReport,
 
 } from "../controllers/supplierProduct.js";
 
@@ -286,6 +288,18 @@ router.get(
    "/dashboard/recent-orders",
    verifySupplierProduct,
    getSupplierRecentOrders
+);
+
+router.get(
+   "/dashboard/sales-report",
+   verifySupplierProduct,
+   getSupplierSalesReport
+);
+
+router.get(
+   "/dashboard/product-report",
+   verifySupplierProduct,
+   getSupplierProductReport
 );
 
 router.post(
