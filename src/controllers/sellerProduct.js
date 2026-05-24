@@ -108,7 +108,7 @@ async function sellerProduct(req, res) {
     });
   } catch (err) {
     console.error("SELLER PRODUCT ERROR:", err);
-    res.status(500).json({ message: "Same SKU already exists. Please use a different SKU" });
+    res.status(500).json({ message: err.message || "Internal server error" });
   }
 }
 
