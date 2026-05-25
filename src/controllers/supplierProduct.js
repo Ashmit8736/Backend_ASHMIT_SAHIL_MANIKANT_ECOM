@@ -122,7 +122,7 @@ const [rows] = await db.query(
 
 
 
-
+// image upload
 
 export async function supplierProductImage(req, res) {
     try {
@@ -170,6 +170,8 @@ export async function supplierProductImage(req, res) {
         res.status(500).json({ message: "Image upload failed" });
     }
 }
+
+
 
 
 export async function getSupplierProducts(req, res) {
