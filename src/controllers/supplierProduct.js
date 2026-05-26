@@ -437,138 +437,6 @@ export async function updateSupplierStock(req, res) {
     }
 }
 
-
-
-
-
-
-// export const getSupplierOrders = async (req, res) => {
-//   try {
-//     if (!req.supplier?.id) {
-//       return res.status(401).json({ message: "Unauthorized" });
-//     }
-
-//     const supplierId = req.supplier.id;
-
-//     const page   = parseInt(req.query.page) || 1;
-//     const limit  = parseInt(req.query.limit) || 10;
-//     const offset = (page - 1) * limit;
-
-//     const { search, status, sort } = req.query;
-
-//     let where = `WHERE oi.owner_type = 'supplier' AND sp.supplier_id = ?`;
-//     let params = [supplierId];
-
-//     /* ================= SEARCH ================= */
-//     if (search) {
-//       where += `
-//         AND (
-//           LOWER(ba.full_name) LIKE LOWER(?) OR
-//           ba.phone LIKE ? OR
-//           LOWER(ba2.full_name) LIKE LOWER(?) OR
-//           ba2.phone LIKE ?
-//         )
-//       `;
-//       params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
-//     }
-
-//     /* ================= STATUS ================= */
-//     if (status) {
-//       where += ` AND bo.order_status = ?`;
-//       params.push(status);
-//     }
-
-//     /* ================= SORT ================= */
-//     let orderBy = `ORDER BY bo.created_at DESC`;
-//     if (sort === "Oldest First")   orderBy = `ORDER BY bo.created_at ASC`;
-//     if (sort === "Highest Value")  orderBy = `ORDER BY (oi.subtotal + IFNULL(oi.gst_amount, 0)) DESC`; // ✅ GST included sort
-//     if (sort === "Lowest Value")   orderBy = `ORDER BY (oi.subtotal + IFNULL(oi.gst_amount, 0)) ASC`;  // ✅ GST included sort
-
-//     /* ================= COUNT ================= */
-//     const [[{ total }]] = await cartDb.query(
-//       `
-//       SELECT COUNT(*) as total
-//       FROM order_items oi
-//       JOIN buyer_orders bo ON bo.order_id = oi.order_id
-//       JOIN ecommerce_mojija_product.supplier_product sp
-//         ON sp.product_id = oi.product_id
-//       LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
-//       LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
-//       ${where}
-//       `,
-//       params
-//     );
-
-//     /* ================= DATA ================= */
-//     const [rows] = await cartDb.query(
-//       `
-//       SELECT
-//         oi.order_item_id,
-//         oi.order_id,
-//         oi.product_id,
-//         oi.quantity,
-//         oi.subtotal,
-//         IFNULL(oi.gst_amount, 0) AS gst_amount,
-//         (oi.subtotal + IFNULL(oi.gst_amount, 0)) AS total_amount,
-
-//         bo.order_status,
-//         bo.created_at,
-//         bo.payment_mode,
-
-//         COALESCE(ba.full_name, ba2.full_name) AS buyer_name,
-//         COALESCE(ba.phone, ba2.phone) AS buyer_phone,
-
-//         sp.product_name
-
-//       FROM order_items oi
-//       JOIN buyer_orders bo ON bo.order_id = oi.order_id
-//       JOIN ecommerce_mojija_product.supplier_product sp
-//         ON sp.product_id = oi.product_id
-//       LEFT JOIN buyer_addresses ba ON ba.address_id = bo.address_id
-//       LEFT JOIN buyer_addresses ba2 ON ba2.buyer_id = bo.buyer_id
-
-//       ${where}
-//       ${orderBy}
-//       LIMIT ? OFFSET ?
-//       `,
-//       [...params, limit, offset]
-//     );
-
-//     return res.json({
-//       success: true,
-//       data: rows.map((o) => ({
-//         orderItemId: o.order_item_id,
-//         orderId: o.order_id,
-//         date: o.created_at ? new Date(o.created_at).toISOString() : null,
-//         buyer: {
-//           name: o.buyer_name,
-//           phone: o.buyer_phone,
-//         },
-//         product: {
-//           id: o.product_id,
-//           name: o.product_name,
-//         },
-//         quantity: o.quantity,
-//         base_amount: o.subtotal,          // ✅ without GST
-//         gst_amount: o.gst_amount,         // ✅ GST amount
-//         amount: o.total_amount,           // ✅ GST included total
-//         paymentMode: o.payment_mode,
-//         status: o.order_status,
-//       })),
-//       pagination: {
-//         currentPage: page,
-//         totalPages: Math.ceil(total / limit),
-//         totalRecords: total,
-//         limit,
-//       },
-//     });
-
-//   } catch (err) {
-//     console.error("GET SUPPLIER ORDERS ERROR:", err);
-//     res.status(500).json({ message: "Failed to fetch supplier orders" });
-//   }
-// };
-
 export const getSupplierOrders = async (req, res) => {
   try {
     if (!req.supplier?.id) {
@@ -2037,155 +1905,6 @@ export const getMarketplaceInsights = async (req, res) => {
 };
 
 
-
-
-export const getSupplierDashboardStats = async (req, res) => {
-    try {
-        const supplierId = req.supplier?.id;
-        if (!supplierId) {
-            return res
-                .status(401)
-                .json({ success: false, message: "Supplier not authenticated" });
-        }
-
-        /* ================= TOTAL REVENUE ================= */
-        const [[revenue]] = await db.query(
-            `
-  SELECT COALESCE(SUM(oi.subtotal), 0) AS totalRevenue
-  FROM ecommerce_mojija_cart.buyer_orders bo
-  JOIN ecommerce_mojija_cart.order_items oi
-    ON oi.order_id = bo.order_id
-  JOIN supplier_product sp
-    ON sp.product_id = oi.product_id
-  WHERE oi.owner_type = 'supplier'
-    AND sp.supplier_id = ?
-  `,
-            [supplierId]
-        );
-        /* ================= TOTAL ORDERS (BUYER ORDERS) ================= */
-        const [[orders]] = await db.query(
-            `
-  SELECT COUNT(DISTINCT bo.order_id) AS totalOrders
-  FROM ecommerce_mojija_cart.buyer_orders bo
-  JOIN ecommerce_mojija_cart.order_items oi
-    ON oi.order_id = bo.order_id
-  JOIN supplier_product sp
-    ON sp.product_id = oi.product_id
-  WHERE oi.owner_type = 'supplier'
-    AND sp.supplier_id = ?
-  `,
-            [supplierId]
-        );
-
-        /* ================= TOTAL CUSTOMERS ================= */
-        const [[customers]] = await db.query(
-            `
-      SELECT COUNT(DISTINCT bo.buyer_id) AS customers
-      FROM ecommerce_mojija_cart.order_items oi
-      JOIN supplier_product sp
-        ON sp.product_id = oi.product_id
-      JOIN ecommerce_mojija_cart.buyer_orders bo
-        ON bo.order_id = oi.order_id
-      WHERE oi.owner_type = 'supplier'
-        AND sp.supplier_id = ?
-      `,
-            [supplierId]
-        );
-
-        /* ================= TOTAL PRODUCTS ================= */
-        const [[products]] = await db.query(
-            `
-      SELECT COUNT(*) AS products
-      FROM supplier_product
-      WHERE supplier_id = ?
-      `,
-            [supplierId]
-        );
-
-        return res.json({
-            success: true,
-            totalRevenue: Number(revenue.totalRevenue),
-            totalOrders: orders.totalOrders,
-            customers: customers.customers,
-            products: products.products,
-
-            // 🔮 future-ready
-            revenueGrowth: 0,
-            ordersGrowth: 0,
-            customerGrowth: 0,
-            productGrowth: 0,
-        });
-    } catch (err) {
-        console.error("SUPPLIER DASHBOARD STATS ERROR:", err);
-        return res
-            .status(500)
-            .json({ success: false, message: "Dashboard stats error" });
-    }
-};
-
-
-
-
-//     try {
-//         if (!req.supplier?.id) {
-//             return res.status(401).json({
-//                 success: false,
-//                 message: "Unauthorized",
-//             });
-//         }
-
-//         const supplierId = req.supplier.id;
-
-//         const [rows] = await cartDb.query(
-//             `
-//       SELECT
-//         oi.order_item_id,
-//         oi.order_id,
-//         oi.quantity,
-//         oi.subtotal AS net_amount,
-
-//         bo.order_status,
-//         bo.created_at,
-
-//         bo.buyer_id,
-//         ba.full_name AS buyer_name,
-//         ba.phone AS buyer_phone
-
-//       FROM order_items oi
-
-//       JOIN buyer_orders bo
-//         ON bo.order_id = oi.order_id
-
-//       LEFT JOIN buyer_addresses ba
-//         ON ba.address_id = bo.address_id
-
-//       -- 🔥 IMPORTANT JOIN (SUPPLIER MAPPING)
-//       JOIN ecommerce_mojija_product.supplier_product sp
-//         ON sp.product_id = oi.product_id
-
-//       WHERE oi.owner_type = 'supplier'
-//         AND sp.supplier_id = ?
-
-//       ORDER BY bo.created_at DESC
-//       LIMIT 5
-//       `,
-//             [supplierId]
-//         );
-
-//         return res.json({
-//             success: true,
-//             orders: rows,
-//         });
-
-//     } catch (err) {
-//         console.error("GET SUPPLIER RECENT ORDERS ERROR:", err);
-//         return res.status(500).json({
-//             success: false,
-//             message: "Failed to fetch recent orders",
-//         });
-//     }
-// };
-
 export const getSupplierRecentOrders = async (req, res) => {
     try {
         if (!req.supplier?.id) {
@@ -2519,3 +2238,231 @@ export async function updateSupplierItemStatus(req, res) {
     return res.status(500).json({ message: "Failed to update item status" });
   }
 }
+
+
+// ==========================================
+// SUPPLIER DASHBOARD STATS CONTROLLER
+// ==========================================
+export const getSupplierDashboardStats = async (req, res) => {
+  try {
+    if (!req.supplier?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const supplierId = req.supplier.id;
+
+    // ==========================================
+    // TOTAL REVENUE + TOTAL ORDERS
+    // ==========================================
+    const [[stats]] = await cartDb.query(
+      `
+      SELECT
+        COUNT(DISTINCT oi.order_item_id) AS totalOrders,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN oi.item_status != 'cancelled'
+              THEN (oi.subtotal + IFNULL(oi.gst_amount,0))
+              ELSE 0
+            END
+          ),
+          0
+        ) AS totalRevenue
+
+      FROM order_items oi
+      INNER JOIN ecommerce_mojija_product.supplier_product sp
+        ON sp.product_id = oi.product_id
+
+      WHERE oi.owner_type = 'supplier'
+        AND sp.supplier_id = ?
+      `,
+      [supplierId]
+    );
+
+    // ==========================================
+    // TOTAL PRODUCTS
+    // ==========================================
+    const [[products]] = await db.query(
+      `
+      SELECT COUNT(*) AS totalProducts
+      FROM supplier_product
+      WHERE supplier_id = ?
+      `,
+      [supplierId]
+    );
+
+    // ==========================================
+    // TODAY ORDERS
+    // ==========================================
+    const [[todayOrders]] = await cartDb.query(
+      `
+      SELECT COUNT(*) AS todayOrders
+      FROM order_items oi
+      INNER JOIN ecommerce_mojija_product.supplier_product sp
+        ON sp.product_id = oi.product_id
+
+      WHERE oi.owner_type = 'supplier'
+        AND sp.supplier_id = ?
+        AND DATE(CONVERT_TZ(oi.created_at, '+00:00', '+05:30')) = CURDATE()
+      `,
+      [supplierId]
+    );
+
+    // ==========================================
+    // WEEKLY ORDERS
+    // ==========================================
+    const [[weeklyOrders]] = await cartDb.query(
+      `
+      SELECT COUNT(*) AS weeklyOrders
+      FROM order_items oi
+      INNER JOIN ecommerce_mojija_product.supplier_product sp
+        ON sp.product_id = oi.product_id
+
+      WHERE oi.owner_type = 'supplier'
+        AND sp.supplier_id = ?
+        AND YEARWEEK(CONVERT_TZ(oi.created_at, '+00:00', '+05:30'), 1)
+            = YEARWEEK(CURDATE(), 1)
+      `,
+      [supplierId]
+    );
+
+    return res.json({
+      success: true,
+
+      totalRevenue: Number(stats.totalRevenue || 0),
+      totalOrders: Number(stats.totalOrders || 0),
+      products: Number(products.totalProducts || 0),
+
+      todayOrders: Number(todayOrders.todayOrders || 0),
+      weeklyOrders: Number(weeklyOrders.weeklyOrders || 0),
+    });
+  } catch (err) {
+    console.error("SUPPLIER DASHBOARD STATS ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load dashboard stats",
+    });
+  }
+};
+
+// ==========================================
+// SALES REPORT (BAR CHART)
+// ==========================================
+export const getSupplierSalesReport = async (req, res) => {
+  try {
+    if (!req.supplier?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const supplierId = req.supplier.id;
+
+    const [rows] = await cartDb.query(
+      `
+      SELECT
+        DATE_FORMAT(
+          CONVERT_TZ(oi.created_at, '+00:00', '+05:30'),
+          '%b'
+        ) AS month,
+
+        MONTH(CONVERT_TZ(oi.created_at, '+00:00', '+05:30')) AS monthNumber,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN oi.item_status != 'cancelled'
+              THEN (oi.subtotal + IFNULL(oi.gst_amount,0))
+              ELSE 0
+            END
+          ),
+          0
+        ) AS sales
+
+      FROM order_items oi
+
+      INNER JOIN ecommerce_mojija_product.supplier_product sp
+        ON sp.product_id = oi.product_id
+
+      WHERE oi.owner_type = 'supplier'
+        AND sp.supplier_id = ?
+        AND YEAR(CONVERT_TZ(oi.created_at, '+00:00', '+05:30')) = YEAR(CURDATE())
+
+      GROUP BY month, monthNumber
+      ORDER BY monthNumber ASC
+      `,
+      [supplierId]
+    );
+
+    return res.json({
+      success: true,
+      data: rows,
+    });
+  } catch (err) {
+    console.error("SUPPLIER SALES REPORT ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load sales report",
+    });
+  }
+};
+
+// ==========================================
+// PRODUCT REPORT (PIE CHART)
+// ==========================================
+export const getSupplierProductReport = async (req, res) => {
+  try {
+    if (!req.supplier?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const supplierId = req.supplier.id;
+
+    const [rows] = await cartDb.query(
+      `
+      SELECT
+        cm.category_name AS category,
+
+        COUNT(oi.order_item_id) AS totalOrders
+
+      FROM order_items oi
+
+      INNER JOIN ecommerce_mojija_product.supplier_product sp
+        ON sp.product_id = oi.product_id
+
+      INNER JOIN ecommerce_mojija_product.category_master cm
+        ON cm.id = sp.category_master_id
+
+      WHERE oi.owner_type = 'supplier'
+        AND sp.supplier_id = ?
+        AND oi.item_status != 'cancelled'
+
+      GROUP BY cm.category_name
+      ORDER BY totalOrders DESC
+      `,
+      [supplierId]
+    );
+
+    return res.json({
+      success: true,
+      data: rows,
+    });
+  } catch (err) {
+    console.error("SUPPLIER PRODUCT REPORT ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load product report",
+    });
+  }
+};
