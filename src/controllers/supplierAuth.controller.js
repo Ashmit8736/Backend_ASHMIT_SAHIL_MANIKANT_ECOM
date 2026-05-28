@@ -181,12 +181,15 @@ async function supplierLogin(req, res) {
         role: "supplier",
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1y" }
+      // { expiresIn: "1m" }
     );
 
     res.cookie("suppliertoken", token, {
       httpOnly: true,
       sameSite: "lax",
+       maxAge: 1000 * 60 * 60 * 24 * 365, // ✅ 1 year
+      //  maxAge: 1000 * 60 * 1, // ✅ 1 minutes
     });
 
     delete supplier.password;

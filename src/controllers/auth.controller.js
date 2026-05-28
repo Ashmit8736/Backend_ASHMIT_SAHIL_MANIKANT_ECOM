@@ -132,7 +132,8 @@ async function loginController(req, res) {
     const token = jwt.sign(
       { id: user.id, phone: user.phone, role: "buyer" },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      // { expiresIn: "1y" }
+       { expiresIn: "1y" }
     );
 
     res.cookie("token", token, {
@@ -140,7 +141,8 @@ async function loginController(req, res) {
       // secure: process.env.NODE_ENV === "production",
       secure: true, // Always secure in modern browsers, even on localhost
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 1000 * 60 * 60 * 24 * 365, // ✅ 1 year
+        // maxAge: 1000 * 60 * 1, // ✅ 1 minutes
       path: "/",
     });
     return res.status(200).json({
