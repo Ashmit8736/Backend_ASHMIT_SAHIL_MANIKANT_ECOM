@@ -227,10 +227,16 @@ async function sellerLogin(req, res) {
         phone: seller.phone
       },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+       { expiresIn: "1y" }
+      // { expiresIn: "1m" }
     );
 
-    res.cookie('sellertoken', token, { httpOnly: true, sameSite: 'lax' });
+    res.cookie('sellertoken', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+   maxAge: 1000 * 60 * 60 * 24 * 365, // ✅ 1 year
+      //  maxAge: 1000 * 60 * 1, // ✅ 1 minutes
+     });
 
     res.status(201).json({
       message: "Seller login successfully",
