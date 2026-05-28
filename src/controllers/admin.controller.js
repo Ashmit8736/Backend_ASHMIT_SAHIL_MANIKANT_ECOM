@@ -92,8 +92,18 @@ export async function adminLoginController(req, res) {
         role: "admin"
       },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "1y" }
     );
+
+        res.cookie("token", token, {
+      httpOnly: true,
+      // secure: process.env.NODE_ENV === "production",
+      secure: true, // Always secure in modern browsers, even on localhost
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24 * 365, // ✅ 1 year
+        // maxAge: 1000 * 60 * 1, // ✅ 1 minutes
+      path: "/",
+    });
 
     console.log("TOKEN:", token);
 
